@@ -1,0 +1,112 @@
+name: Build and release Orca Custom
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orca-custom-release
+  cancel-in-progress: false
+
+env:
+  ORCA_BACKGROUND_LAUNCH: '1'
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+  NODE_OPTIONS: --max-old-space-size=5120
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: darwin-arm64
+          - runner: macos-15-intel
+            target: darwin-x64
+          - runner: windows-2022
+            target: win32-x64
+          - runner: ubuntu-22.04
+            target: linux-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Install Linux build prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y python3-gi gir1.2-atspi-2.0 at-spi2-core xclip xdotool libgtk-3-0 libnss3 libasound2 libgbm1 libnotify-bin
+      - name: Install toolchains and dependencies
+        run: |
+          npm install --global pnpm@12.0.0
+          pnpm install --frozen-lockfile
+          pnpm --dir mobile install --frozen-lockfile
+          python -m pip install -r distribution/requirements.txt
+      - name: Build Windows relay native modules
+        if: runner.os == 'Windows'
+        run: |
+          node config/scripts/build-windows-process-tree-relay-addon.mjs --arch=x64
+          node config/scripts/build-windows-process-tree-relay-addon.mjs --arch=arm64
+      - name: Verify updater and app changes
+        run: |
+          python -m unittest discover -s distribution/tests -v
+          pnpm exec vitest run --config config/vitest.config.ts src/main/custom-distribution-updater.test.ts src/main/startup/configure-process.test.ts src/renderer/src/components/orchestration-status
+          pnpm tc:node
+          pnpm tc:cli
+          pnpm tc:web
+      - name: Build native app and Python installer
+        env:
+          CUSTOM_RELEASE_VERSION: 1.0.${{ github.run_number }}
+          ORCA_BUILD_COMMIT: ${{ github.sha }}
+        run: python distribution/build.py --version "$CUSTOM_RELEASE_VERSION"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.target }}
+          path: release/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v8
+        with:
+          path: release
+          merge-multiple: true
+      - name: Verify complete release
+        env:
+          CUSTOM_RELEASE_VERSION: 1.0.${{ github.run_number }}
+        run: python distribution/assemble_release.py release --version "$CUSTOM_RELEASE_VERSION"
+      - name: Publish verified native bundles together
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CUSTOM_RELEASE_VERSION: 1.0.${{ github.run_number }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v$CUSTOM_RELEASE_VERSION"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --draft --target "$RELEASE_COMMIT" --title "Orca Custom $CUSTOM_RELEASE_VERSION" --notes "Orca Custom with the orchestration panel and Python automatic updater. Download the ZIP for your OS, extract it, and run its installer. All four native builds passed before publication."
+          fi
+          gh release upload "$tag" release/*.zip release/release.json release/SHA256SUMS.txt --clobber
+          gh release edit "$tag" --draft=false --latest

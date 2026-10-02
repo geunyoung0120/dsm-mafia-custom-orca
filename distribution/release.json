@@ -1,0 +1,7 @@
+{
+  "repository": "geunyoung0120/orca-custom",
+  "versionPrefix": "1.0",
+  "upstreamVersion": "1.4.218",
+  "upstreamCommit": "95e8725b40d67f83e5c571f144e61b284995cb5e",
+  "platforms": ["darwin-arm64", "darwin-x64", "win32-x64", "linux-x64"]
+}
