@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import shlex
 import sys
 import tempfile
 import unittest
@@ -66,7 +67,8 @@ class WatchServiceTests(unittest.TestCase):
             service=(home/'.config/systemd/user/orca-custom-install-watch.service').read_text()
             self.assertIn('Type=simple',service)
             self.assertIn('Restart=on-failure',service)
-            self.assertIn(str(runtime),service)
+            command_line=next(line.removeprefix('ExecStart=') for line in service.splitlines() if line.startswith('ExecStart='))
+            self.assertEqual(shlex.split(command_line),[str(runtime),'watch-ready','--state',str(state)])
             self.assertIn('watch-ready',service)
             self.assertNotIn('OnUnitActiveSec',service)
             self.assertIn(['systemctl','--user','start','orca-custom-install-watch.service'],[call.args[0] for call in command.call_args_list])
