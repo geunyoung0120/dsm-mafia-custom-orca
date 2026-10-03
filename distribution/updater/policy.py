@@ -7,7 +7,7 @@ import tarfile
 import tempfile
 from urllib.parse import urlparse
 
-REPOSITORY = 'geunyoung0120/gy-custom-orca'
+REPOSITORY = 'geunyoung0120/dsm-mafia-custom-orca'
 
 
 def version(value):
