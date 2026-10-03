@@ -19,7 +19,7 @@ class ScheduleTests(unittest.TestCase):
             with patch('platforms.sys.platform','linux'),patch('platforms.Path.home',return_value=home):
                 platforms.shortcut(state)
             entry=(home/'.local/share/applications/orca-custom.desktop').read_text(encoding='utf-8')
-            self.assertIn('Exec="'+str(state/'app/orca')+'"',entry)
+            self.assertIn('Exec="'+str(state/'app/orca-ide')+'"',entry)
             self.assertNotIn('\\u',entry)
 
     def test_mac_notification_registers_its_bundle_before_requesting_permission(self):

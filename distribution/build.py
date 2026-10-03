@@ -102,7 +102,7 @@ def package_app(app, updater, release_version, output):
         files={'Orca.app/'+key:value for key,value in inventory(app).items()}
         executable='Orca.app/Contents/MacOS/Orca'
     else:
-        files=inventory(app); executable='Orca.exe' if sys.platform=='win32' else 'orca'
+        files=inventory(app); executable='Orca.exe' if sys.platform=='win32' else 'orca-ide'
     if executable not in files: raise ValueError('Packaged app executable is missing')
     with tarfile.open(package/'payload.tar.gz','w:gz',dereference=False) as stream:
         stream.add(app,arcname='app/Orca.app' if sys.platform=='darwin' else 'app')

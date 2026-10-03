@@ -96,7 +96,7 @@ def shortcut(state):
              '$s.TargetPath=$env:ORCA_CUSTOM_EXE; $s.WorkingDirectory=[IO.Path]::GetDirectoryName($env:ORCA_CUSTOM_EXE); $s.Save()'],env=environment)
     else:
         path=Path.home()/'.local/share/applications/orca-custom.desktop'; path.parent.mkdir(parents=True,exist_ok=True)
-        executable=str(app/'orca').replace('%','%%')
+        executable=str(app/'orca-ide').replace('%','%%')
         if '\n' in executable or '\r' in executable: raise ValueError('Invalid launcher path')
         for character in ('\\','"','`','$'):
             executable=executable.replace(character,'\\'+character)

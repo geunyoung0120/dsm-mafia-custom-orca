@@ -23,7 +23,7 @@ class BundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
             app=root/'source'; app.mkdir()
-            name={'darwin':'Contents/MacOS/Orca','win32':'Orca.exe','linux':'orca'}[sys.platform]
+            name={'darwin':'Contents/MacOS/Orca','win32':'Orca.exe','linux':'orca-ide'}[sys.platform]
             executable=app/name; executable.parent.mkdir(parents=True,exist_ok=True)
             executable.write_bytes(b'fixture executable'); executable.chmod(0o755)
             updater=root/('OrcaCustomUpdater.exe' if sys.platform=='win32' else 'OrcaCustomUpdater')

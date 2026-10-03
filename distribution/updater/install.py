@@ -12,7 +12,7 @@ def app_running(app):
         try:
             info=process.info; executable=info['exe']
             if not executable:
-                if (info['name'] or '').lower() in ('orca','orca.exe'): return True
+                if (info['name'] or '').lower() in ('orca','orca.exe','orca-ide'): return True
                 continue
             if not Path(executable).resolve().is_relative_to(app): continue
             args=info['cmdline'] or []
@@ -24,7 +24,7 @@ def app_running(app):
         except psutil.NoSuchProcess:
             continue
         except psutil.AccessDenied:
-            if (process.info.get('name') or '').lower() in ('orca','orca.exe'): return True
+            if (process.info.get('name') or '').lower() in ('orca','orca.exe','orca-ide'): return True
     return False
 
 
