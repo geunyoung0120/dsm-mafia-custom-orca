@@ -1,3 +1,5 @@
+import { currentRunCoordinatorOrcaSessionId } from './orchestration/db/runs/run-coordinator-orca-session'
+import { structuredWorkerMailSessionId } from './orchestration/structured-session-mail-target'
 import { structuredWorkerIdentities } from './structured-worker-identity'
 import {
   structuredAgentSessionPaneKey,
@@ -84,9 +86,10 @@ export class RuntimeAgentOrchestrationProjection {
     }
     const displayKeys = new Map<string, string>()
     for (const worker of structuredWorkerIdentities.list()) {
+      const sessionId = structuredWorkerMailSessionId(worker.sessionId) ?? worker.sessionId
       const paneKey = structuredAgentSessionPaneKey(
-        structuredAgentSessionTabId(worker.sessionId),
-        worker.sessionId
+        structuredAgentSessionTabId(sessionId),
+        sessionId
       )
       displayKeys.set(worker.paneKey, paneKey)
       const context = this.getForHandle(worker.handle, db, {
@@ -224,6 +227,14 @@ export class RuntimeAgentOrchestrationProjection {
       coordinatorHandle,
       owningRun?.legacy === 0 ? owningRun.coordinator_pane_key : null
     )
+    const coordinatorSession = owningRun && currentRunCoordinatorOrcaSessionId(owningRun)
+    if (!coordinator.paneKey && coordinatorSession) {
+      const liveSession = structuredWorkerMailSessionId(coordinatorSession) ?? coordinatorSession
+      coordinator.paneKey = structuredAgentSessionPaneKey(
+        structuredAgentSessionTabId(liveSession),
+        liveSession
+      )
+    }
     const creator = currentCreatorHandle
       ? {
           handle: currentCreatorHandle,

@@ -1,3 +1,4 @@
+import { parseOrcaSessionAddress } from '../../shared/orca-session-address'
 import { createRootDispatch } from './orchestration/db/root-dispatch-test-fixture'
 import { afterEach, expect, it, vi } from 'vitest'
 import { RuntimeAgentOrchestrationProjection } from './runtime-agent-orchestration-projection'
@@ -33,42 +34,48 @@ afterEach(() => {
   structuredWorkerIdentities.forget(worker.handle)
   vi.restoreAllMocks()
 })
-it('projects Codex native workers under the requesting chat without PTYs or authority-key changes', () => {
-  structuredWorkerIdentities.register(coordinator)
-  structuredWorkerIdentities.register(worker)
-  const db = new OrchestrationDb(':memory:')
-  const run = db.createRun({
-    objective: 'Check Linux',
-    coordinatorHandle: coordinator.handle,
-    coordinatorPaneKey: coordinator.paneKey
-  })
-  const task = db.createTask({
-    spec: 'Check Linux',
-    runId: run.id,
-    createdByTerminalHandle: coordinator.handle,
-    createdByPaneKey: coordinator.paneKey
-  })
-  const dispatch = createRootDispatch(db, task.id, worker.handle, worker.paneKey)
-  const projection = new RuntimeAgentOrchestrationProjection({
-    getDb: () => db,
-    getLeaves: () => [],
-    getPtys: () => [],
-    issueLeafHandle: () => '',
-    issuePtyHandle: () => '',
-    makePaneKey: () => '',
-    getWorktreeId: () => null,
-    getHandleForPaneKey: () => null,
-    getPaneKey: () => null,
-    getDispatchAuthority: () => null,
-    getAgentStatusSnapshot: () => []
-  })
-  const contexts = projection.buildByPaneKey() ?? {}
-  expect(contexts[displayPane(worker)]).toMatchObject({
-    dispatchId: dispatch.id,
-    parentPaneKey: displayPane(coordinator)
-  })
-  expect(structuredWorkerIdentities.get(worker.handle)?.paneKey).toBe(worker.paneKey)
-  structuredWorkerIdentities.forget(worker.handle)
-  expect(projection.buildByPaneKey()).toBeUndefined()
-  db.close()
-})
+it.each([true, false])(
+  'projects Codex native workers under a chat with handle=%s without PTYs',
+  (hasHandle) => {
+    if (hasHandle) {
+      structuredWorkerIdentities.register(coordinator)
+    }
+    structuredWorkerIdentities.register(worker)
+    const db = new OrchestrationDb(':memory:')
+    const run = db.createRun({
+      objective: 'Check Linux',
+      coordinatorHandle: hasHandle ? coordinator.handle : null,
+      coordinatorPaneKey: hasHandle ? coordinator.paneKey : null,
+      coordinatorOrcaSessionId: parseOrcaSessionAddress(`session:${coordinator.sessionId}`)
+    })
+    const task = db.createTask({
+      spec: 'Check Linux',
+      runId: run.id,
+      createdByTerminalHandle: coordinator.handle,
+      createdByPaneKey: coordinator.paneKey
+    })
+    const dispatch = createRootDispatch(db, task.id, worker.handle, worker.paneKey)
+    const projection = new RuntimeAgentOrchestrationProjection({
+      getDb: () => db,
+      getLeaves: () => [],
+      getPtys: () => [],
+      issueLeafHandle: () => '',
+      issuePtyHandle: () => '',
+      makePaneKey: () => '',
+      getWorktreeId: () => null,
+      getHandleForPaneKey: () => null,
+      getPaneKey: () => null,
+      getDispatchAuthority: () => null,
+      getAgentStatusSnapshot: () => []
+    })
+    const contexts = projection.buildByPaneKey() ?? {}
+    expect(contexts[displayPane(worker)]).toMatchObject({
+      dispatchId: dispatch.id,
+      parentPaneKey: displayPane(coordinator)
+    })
+    expect(structuredWorkerIdentities.get(worker.handle)?.paneKey).toBe(worker.paneKey)
+    structuredWorkerIdentities.forget(worker.handle)
+    expect(projection.buildByPaneKey()).toBeUndefined()
+    db.close()
+  }
+)
