@@ -14,6 +14,11 @@ import platforms
 
 
 class BundleTests(unittest.TestCase):
+    def test_native_pnpm_is_executed_without_node(self):
+        with patch.dict('os.environ',{},clear=True),patch('build.shutil.which',return_value='/usr/local/bin/pnpm'),patch('build.run') as run:
+            build.pnpm('run','build:relay')
+        self.assertEqual(str(run.call_args.args[0][0]),str(Path('/usr/local/bin/pnpm').resolve()))
+
     def test_real_package_extraction_and_verified_install(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)

@@ -33,7 +33,8 @@ def pnpm(*args):
     if path.suffix in ('.cmd','.ps1'):
         path=path.parent/'node_modules/pnpm/bin/pnpm.cjs'
         if not path.exists(): path=path.with_suffix('.mjs')
-    run(['node',path,*args])
+    prefix=['node',path] if path.suffix in ('.js','.cjs','.mjs') else [path]
+    run([*prefix,*args])
 
 
 def notifier():

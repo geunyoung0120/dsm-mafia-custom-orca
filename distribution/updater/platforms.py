@@ -1,4 +1,5 @@
 import getpass
+from datetime import datetime, timedelta
 import json
 import os
 from pathlib import Path
@@ -49,8 +50,11 @@ def schedule(state, bootstrap):
         def element(parent,name,text=None,**attrs):
             item=ET.SubElement(parent,f'{{{namespace}}}{name}',attrs); item.text=text; return item
         task=ET.Element(f'{{{namespace}}}Task',{'version':'1.2'})
-        trigger=element(element(task,'Triggers'),'LogonTrigger')
+        triggers=element(task,'Triggers')
+        element(element(triggers,'LogonTrigger'),'Enabled','true')
+        trigger=element(triggers,'TimeTrigger')
         repetition=element(trigger,'Repetition'); element(repetition,'Interval','PT1M')
+        element(trigger,'StartBoundary',(datetime.now()+timedelta(minutes=1)).isoformat(timespec='seconds'))
         element(trigger,'Enabled','true')
         principal=element(element(task,'Principals'),'Principal',id='Author')
         domain=os.environ.get('USERDOMAIN','')
