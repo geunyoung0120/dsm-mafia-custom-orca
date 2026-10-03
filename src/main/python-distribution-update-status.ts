@@ -61,7 +61,7 @@ export function readDistributionUpdateStatus(
   ) {
     return idle
   }
-  const resources = platform === 'darwin' ? join('Contents', 'Resources') : 'resources'
+  const resources = platform === 'darwin' ? join('Orca.app', 'Contents', 'Resources') : 'resources'
   if (!existsSync(join(pending.candidate, resources, 'app.asar'))) {
     return idle
   }

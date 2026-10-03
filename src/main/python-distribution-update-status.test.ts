@@ -14,7 +14,9 @@ function json(name: string, value: unknown): void {
 function ready(platform: NodeJS.Platform): void {
   const candidate = join(home, 'prepared', version, 'payload', 'app')
   const resources =
-    platform === 'darwin' ? join(candidate, 'Contents', 'Resources') : join(candidate, 'resources')
+    platform === 'darwin'
+      ? join(candidate, 'Orca.app', 'Contents', 'Resources')
+      : join(candidate, 'resources')
   mkdirSync(resources, { recursive: true })
   writeFileSync(join(resources, 'app.asar'), 'verified')
   json('pending.json', {
