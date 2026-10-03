@@ -20,7 +20,7 @@ class PolicyTests(unittest.TestCase):
             with self.assertRaises(ValueError): policy.version(value)
 
     def test_assets_must_belong_to_our_exact_repository_and_release(self):
-        good = 'https://github.com/geunyoung0120/orca-custom/releases/download/v1.0.1/app.zip'
+        good = 'https://github.com/geunyoung0120/gy-custom-orca/releases/download/v1.0.1/app.zip'
         policy.validate_asset_url(good, '1.0.1')
         for bad in (good.replace('geunyoung0120','attacker'), good.replace('https:','http:'), good+'?other=1',good.replace('v1.0.1','v1.0.2')):
             with self.assertRaises(ValueError): policy.validate_asset_url(bad, '1.0.1')

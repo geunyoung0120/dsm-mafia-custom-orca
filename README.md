@@ -4,7 +4,7 @@
 
 ## 설치
 
-[Releases](https://github.com/geunyoung0120/orca-custom/releases/latest)에서 내 컴퓨터에 맞는 ZIP을 받아 **전체 압축을 해제**한 뒤 설치 파일을 실행합니다. 최초 릴리스가 없다면 [Actions](https://github.com/geunyoung0120/orca-custom/actions)에서 빌드 상태를 확인하세요.
+[Releases](https://github.com/geunyoung0120/gy-custom-orca/releases/latest)에서 내 컴퓨터에 맞는 ZIP을 받아 **전체 압축을 해제**한 뒤 설치 파일을 실행합니다. 최초 릴리스가 없다면 [Actions](https://github.com/geunyoung0120/gy-custom-orca/actions)에서 빌드 상태를 확인하세요.
 
 | 컴퓨터 | ZIP 이름 끝부분 | 설치 파일 |
 | --- | --- | --- |
@@ -71,3 +71,7 @@ python distribution/build.py --version 1.0.1
 ## 원본과 라이선스
 
 원본 Orca는 Copyright (c) 2026 Lovecast Inc., MIT License입니다. [LICENSE](LICENSE)를 유지합니다. 기반 버전·커밋은 [distribution/release.json](distribution/release.json)에 기록하며 [원본 README](README.upstream.md)를 보존합니다.
+
+## 저장소 이름 변경 안내
+
+저장소는 `geunyoung0120/gy-custom-orca`입니다. 이전 이름의 저장소를 대상으로 하는 v1.0.5 설치본은 새 릴리스의 설치 프로그램을 한 번 실행해 업데이터를 갱신하세요. 기존 업데이터는 저장소 이름을 엄격하게 검사하므로 GitHub 주소 리디렉션만으로 자동 이전되지 않습니다. 앱 ID와 사용자 데이터 경로는 유지됩니다.

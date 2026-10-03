@@ -56,7 +56,7 @@ export function checkForUpdates(): void {
 
 export function checkForUpdatesFromMenu(options?: UpdateCheckOptions): void {
   void options
-  void shell.openExternal('https://github.com/geunyoung0120/orca-custom/releases')
+  void shell.openExternal('https://github.com/geunyoung0120/gy-custom-orca/releases')
 }
 
 export function downloadUpdate(): void {
