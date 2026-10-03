@@ -15,6 +15,9 @@ export function isUpdateCardVisible({
   autoDismissed?: boolean
   collapsed?: boolean
 }): boolean {
+  if (status.externalManager === 'python') {
+    return false
+  }
   const isUserInitiated = 'userInitiated' in status && Boolean(status.userInitiated)
 
   if (status.state === 'checking' && !isUserInitiated) {

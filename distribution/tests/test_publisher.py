@@ -184,3 +184,19 @@ class PublicationIntegrationTests(VerifiedSourceTests):
         validation.assert_not_called()
         self.assertEqual(git(remote, 'rev-parse', 'main'), pushed)
         self.assertEqual(publisher.read(home / 'baseline.json')['eventId'], identity)
+
+
+class ShallowImportTests(VerifiedSourceTests):
+    def test_shallow_upstream_remains_a_valid_traversable_snapshot(self):
+        newer=self.commit_file('src/new.ts','new upstream\n')
+        job=Path(self.temp.name)/'personal/jobs/shallow';job.mkdir(parents=True)
+        subprocess.run(['git','clone','--depth=1',self.repo.as_uri(),str(job/'source')],check=True,capture_output=True)
+        (job/'feature.patch').write_text('')
+        destination=Path(self.temp.name)/'publisher';destination.mkdir()
+        git(destination,'init','-b','main')
+        git(destination,'config','user.name','Fixture')
+        git(destination,'config','user.email','fixture@example.invalid')
+        event={'commit':newer,'patchHash':digest(job/'feature.patch'),'version':'1.2.3','job':str(job)}
+        commit=publisher.import_snapshot({'personalHome':str(job.parent.parent)},destination,event)
+        self.assertEqual(git(destination,'rev-list','--count',commit),'2')
+        self.assertEqual(git(destination,'show',commit+':src/new.ts'),'new upstream')

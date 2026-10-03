@@ -1,3 +1,8 @@
+import { structuredWorkerIdentities } from './structured-worker-identity'
+import {
+  structuredAgentSessionPaneKey,
+  structuredAgentSessionTabId
+} from '../../shared/structured-agent-session-projection'
 import {
   AGENT_STATUS_STALE_AFTER_MS,
   type AgentStatusOrchestrationContext
@@ -75,6 +80,29 @@ export class RuntimeAgentOrchestrationProjection {
       })
       if (context) {
         contexts[pty.paneKey] = context
+      }
+    }
+    const displayKeys = new Map<string, string>()
+    for (const worker of structuredWorkerIdentities.list()) {
+      const paneKey = structuredAgentSessionPaneKey(
+        structuredAgentSessionTabId(worker.sessionId),
+        worker.sessionId
+      )
+      displayKeys.set(worker.paneKey, paneKey)
+      const context = this.getForHandle(worker.handle, db, {
+        paneKey: worker.paneKey,
+        evidence: evidenceByPaneKey.get(paneKey),
+        deferAttention: batchAttention
+      })
+      if (context) {
+        contexts[paneKey] = context
+      }
+    }
+    // Display addresses must match chat/status rows; bearer pane keys stay private to dispatch lookup.
+    for (const [key, context] of Object.entries(contexts)) {
+      const parent = context.parentPaneKey && displayKeys.get(context.parentPaneKey)
+      if (parent) {
+        contexts[key] = { ...context, parentPaneKey: parent }
       }
     }
     const entries = Object.entries(contexts)

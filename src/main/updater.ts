@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import { getPythonUpdateStatus, observePythonUpdateStatus } from './python-update-status'
 import type {
   LinuxPackageInstallInstructions,
   UpdateCheckOptions,
@@ -24,7 +25,7 @@ export function resolveUpdateInstallMode(isServeMode: boolean): UpdateInstallMod
 }
 
 export function getUpdateStatus(): UpdateStatus {
-  return { state: 'idle' }
+  return getPythonUpdateStatus()
 }
 
 export function getRemoteServerUpdateSupport(): RemoteServerUpdateSupport {
@@ -97,6 +98,6 @@ export function dismissAvailableUpdate(): void {
 }
 
 export function setupAutoUpdater(mainWindow: BrowserWindow, opts?: UpdaterSetupOptions): void {
-  void mainWindow
   void opts
+  observePythonUpdateStatus(mainWindow)
 }

@@ -61,7 +61,7 @@ jobs:
       - name: Verify updater and app changes
         run: |
           python -m unittest discover -s distribution/tests -v
-          pnpm exec vitest run --config config/vitest.config.ts src/main/custom-distribution-updater.test.ts src/main/menu/register-app-menu.test.ts src/renderer/src/components/settings/GeneralUpdateSettingsSection.test.tsx src/renderer/src/components/sidebar/SidebarSettingsHelpMenu.test.tsx src/main/startup/configure-process.test.ts src/renderer/src/components/orchestration-status
+          pnpm exec vitest run --config config/vitest.config.ts src/main/python-update-status.test.ts src/main/python-distribution-update-status.test.ts src/main/runtime/runtime-agent-orchestration-structured.test.ts src/renderer/src/components/status-bar/PythonUpdateReadySegment.test.tsx src/renderer/src/components/native-chat/native-chat-composer-composition.test.tsx src/main/custom-distribution-updater.test.ts src/main/menu/register-app-menu.test.ts src/renderer/src/components/settings/GeneralUpdateSettingsSection.test.tsx src/renderer/src/components/sidebar/SidebarSettingsHelpMenu.test.tsx src/main/startup/configure-process.test.ts src/renderer/src/components/orchestration-status
           pnpm tc:node
           pnpm tc:cli
           pnpm tc:web

@@ -52,7 +52,8 @@ def valid_event(config, event):
 
 def import_snapshot(config, repo, event):
     job = valid_event(config, event)
-    git(repo, 'fetch', '--no-tags', str(job / 'source'), event['commit'])
+    git(repo, 'fetch', '--no-tags', '--depth=1', '--update-shallow', str(job / 'source'),
+        event['commit'] + ':refs/orca-upstreams/' + event['commit'])
     commit = snapshot(repo, event['commit'], job / 'feature.patch', event['patchHash'])
     git(repo, 'update-ref', 'refs/orca-verified/' + event_id(event), commit)
     return commit

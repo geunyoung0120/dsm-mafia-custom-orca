@@ -1,4 +1,5 @@
 import React from 'react'
+import { PythonUpdateReadySegment } from './PythonUpdateReadySegment'
 import { AlertCircle, CheckCircle2, Download } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAppStore } from '../../store'
@@ -16,6 +17,10 @@ export function UpdateStatusSegment({
   const status = useAppStore((s) => s.updateStatus)
   const collapsed = useAppStore((s) => s.updateCardCollapsed)
   const setCollapsed = useAppStore((s) => s.setUpdateCardCollapsed)
+
+  if (status.externalManager === 'python' && status.state === 'downloaded') {
+    return <PythonUpdateReadySegment version={status.version} />
+  }
 
   if (status.state !== 'downloading' && status.state !== 'downloaded' && status.state !== 'error') {
     return null

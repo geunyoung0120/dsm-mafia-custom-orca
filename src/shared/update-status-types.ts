@@ -92,7 +92,7 @@ export type UpdateStatus = (
       activeNudgeId?: string
       recovery?: LinuxPackageInstallRecovery
     }
-) & { source?: UpdateSource }
+) & { source?: UpdateSource; externalManager?: 'python' }
 
 export type ReleaseBuildListResult =
   | { ok: true; channel: ReleaseChannel; builds: ReleaseBuild[] }

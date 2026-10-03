@@ -73,6 +73,14 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('requesting pane status integration', () => {
+  it('automatically shows host-projected workers in the requesting native chat without selecting a run', async () => {
+    enabled = true
+    render(<OrchestrationStatusPanel paneKey="actual-coordinator" />)
+    await screen.findByText('100 tokens')
+    expect(screen.getByText('Implement introduction')).toBeTruthy()
+    expect(screen.getByText('claude-measured')).toBeTruthy()
+    expect(window.localStorage.length).toBe(0)
+  })
   it('removes the whole panel and run picker on terminal cleanup despite a replayed context', async () => {
     enabled = true
     window.localStorage.setItem('orca.orchestration-panel.run:requester', 'selected-run')
