@@ -71,8 +71,14 @@ def application(release_version):
     package_path.write_text(json.dumps(package,indent=2)+'\n',encoding='utf-8')
     if sys.platform=='darwin': notifier()
     # These match build:release, without its developer-only global CLI symlink.
-    for script in ('build:relay','build:native','verify:computer-native'):
+    for script in ('build:relay','build:native'):
         pnpm('run',script)
+    if sys.platform=='linux':
+        # apt's GObject introspection bindings belong to the system Python.
+        run([shutil.which('node'),'config/scripts/verify-computer-native.mjs'],
+            env={**os.environ,'PATH':'/usr/bin:'+os.environ['PATH']})
+    else:
+        pnpm('run','verify:computer-native')
     run(['node','node_modules/typescript/bin/tsc','-p','config/tsconfig.cli.json',
          '--outDir','out','--composite','false','--incremental','false'])
     run(['node','config/scripts/verify-cli-bin.mjs','--fix-executable','--fix-package-json'])

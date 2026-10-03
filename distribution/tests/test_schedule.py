@@ -12,12 +12,13 @@ import platforms
 
 
 class ScheduleTests(unittest.TestCase):
+    @unittest.skipIf(sys.platform=='win32','Linux desktop entries use POSIX paths')
     def test_linux_launcher_preserves_unicode_and_quotes(self):
         with tempfile.TemporaryDirectory() as directory:
             home=Path(directory); state=home/'사용자 폴더'
             with patch('platforms.sys.platform','linux'),patch('platforms.Path.home',return_value=home):
                 platforms.shortcut(state)
-            entry=(home/'.local/share/applications/orca-custom.desktop').read_text()
+            entry=(home/'.local/share/applications/orca-custom.desktop').read_text(encoding='utf-8')
             self.assertIn('Exec="'+str(state/'app/orca')+'"',entry)
             self.assertNotIn('\\u',entry)
 

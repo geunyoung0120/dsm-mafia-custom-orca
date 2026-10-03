@@ -9,7 +9,9 @@ import subprocess
 import sys
 import time
 import zipfile
+from urllib.error import URLError
 from install import recover, replace_app
+from cache import prune
 from network import download, latest, release_manifest
 import platforms
 from policy import REPOSITORY, atomic_json, extract_payload, read_json, relative_path, verify_inventory, version
@@ -99,6 +101,8 @@ def apply(state, pending, request_permission=False):
         (state/'pending.json').unlink(missing_ok=True)
         (state/'failure.json').unlink(missing_ok=True)
         notice(state,pending['version'],'installed',request_permission)
+        try: prune(state)
+        except Exception as error: atomic_json(state/'cleanup-error.json',{'reason':str(error)})
     elif result=='waiting_for_quit':
         notice(state,pending['version'],'ready',request_permission)
     result={'status':result,'version':pending['version'],'updatedAt':time.time()}
@@ -147,6 +151,10 @@ def tick(state, force=False):
         if bundle['version']!=new_version: raise ValueError('Installer version differs from release')
         pending=prepare(state,package)
         return apply(state,pending)
+    except (URLError,TimeoutError,ConnectionError) as error:
+        result={'status':'network_error','version':new_version,'reason':str(error)[-2000:],'time':time.time()}
+        atomic_json(state/'last-error.json',result)
+        return result
     except Exception as error:
         failure={'status':'failed','version':new_version,'reason':str(error)[-2000:]}
         atomic_json(state/'failure.json',failure)

@@ -110,6 +110,33 @@ class InstallTests(unittest.TestCase):
 
 
 class ClientTests(unittest.TestCase):
+    def test_cleanup_removes_downloads_but_keeps_rollback_and_active_runtimes(self):
+        from cache import prune
+        with tempfile.TemporaryDirectory() as directory:
+            state=Path(directory)
+            policy.atomic_json(state/'current.json',{'version':'1.0.3'})
+            policy.atomic_json(state/'install-journal.json',{'previousCurrent':{'version':'1.0.2'}})
+            for category in ('downloads','prepared','runtimes'):
+                for value in ('1.0.1','1.0.2','1.0.3'):
+                    folder=state/category/value; folder.mkdir(parents=True)
+                    (folder/'payload').write_bytes(b'fixture')
+            (state/'previous-app').mkdir(); (state/'previous-app/old').write_bytes(b'old app')
+            prune(state)
+            self.assertEqual(list((state/'downloads').iterdir()),[])
+            self.assertEqual(list((state/'prepared').iterdir()),[])
+            self.assertEqual({p.name for p in (state/'runtimes').iterdir()},{'1.0.2','1.0.3'})
+            self.assertEqual((state/'previous-app/old').read_bytes(),b'old app')
+
+    def test_temporary_network_failure_does_not_permanently_block_release(self):
+        import main
+        from urllib.error import URLError
+        with tempfile.TemporaryDirectory() as directory:
+            state=Path(directory)
+            with patch('main.latest',return_value={'tag_name':'v1.0.2'}),patch('main.release_manifest',side_effect=URLError('offline')):
+                result=main.tick(state,force=True)
+            self.assertEqual(result['status'],'network_error')
+            self.assertFalse((state/'failure.json').exists())
+
     def test_recovered_install_clears_pending_without_replacing_running_app(self):
         import main
         with tempfile.TemporaryDirectory() as directory:
