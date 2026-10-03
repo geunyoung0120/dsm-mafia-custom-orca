@@ -31,7 +31,7 @@ def run(argv, **kwargs):
     return subprocess.run([str(arg) for arg in argv],check=True,capture_output=True,text=True,timeout=60,**kwargs).stdout.strip()
 
 
-def schedule(state, bootstrap):
+def schedule(state, bootstrap, windows_task_name='Orca Custom Updater'):
     state,bootstrap=Path(state),Path(bootstrap)
     args=[str(bootstrap),'tick','--state',str(state)]
     if sys.platform=='darwin':
@@ -53,9 +53,9 @@ def schedule(state, bootstrap):
         triggers=element(task,'Triggers')
         element(element(triggers,'LogonTrigger'),'Enabled','true')
         trigger=element(triggers,'TimeTrigger')
-        repetition=element(trigger,'Repetition'); element(repetition,'Interval','PT1M')
         element(trigger,'StartBoundary',(datetime.now()+timedelta(minutes=1)).isoformat(timespec='seconds'))
         element(trigger,'Enabled','true')
+        repetition=element(trigger,'Repetition'); element(repetition,'Interval','PT1M')
         principal=element(element(task,'Principals'),'Principal',id='Author')
         domain=os.environ.get('USERDOMAIN','')
         element(principal,'UserId',(domain+'\\' if domain else '')+getpass.getuser())
@@ -67,8 +67,8 @@ def schedule(state, bootstrap):
         action=element(element(task,'Actions',Context='Author'),'Exec')
         element(action,'Command',str(bootstrap)); element(action,'Arguments',subprocess.list2cmdline(args[1:]))
         filename=state/'schedule.xml'; filename.write_bytes(ET.tostring(task,encoding='utf-16',xml_declaration=True))
-        run(['schtasks','/Create','/TN','Orca Custom Updater','/XML',filename,'/F'])
-        run(['schtasks','/Run','/TN','Orca Custom Updater'])
+        run(['schtasks','/Create','/TN',windows_task_name,'/XML',filename,'/F'])
+        run(['schtasks','/Run','/TN',windows_task_name])
     else:
         units=Path.home()/'.config/systemd/user'; units.mkdir(parents=True,exist_ok=True)
         def quote(value):
