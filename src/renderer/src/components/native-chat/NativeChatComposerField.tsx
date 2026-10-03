@@ -2,12 +2,14 @@ import { NativeChatPromptEditor } from './NativeChatPromptEditor'
 import type { NativeChatComposerInput } from './native-chat-composer-input'
 import type { ClipboardEventHandler, KeyboardEventHandler, RefObject } from 'react'
 import { useLayoutEffect, useRef } from 'react'
-import { ImageOff } from 'lucide-react'
+import { ImageOff, RotateCcw } from 'lucide-react'
 import type { useImeEnterGestureOwnership } from '@/lib/ime-composition-keyboard-event'
 import { cn } from '@/lib/utils'
 import { NATIVE_FILE_DROP_TARGET } from '../../../../shared/native-file-drop'
 import type { ComposerAutocomplete, NativeChatPickerItem } from './native-chat-composer-state'
-import { NativeChatMentionHint, NativeChatPickerMenu } from './NativeChatAutocompleteMenus'
+import { NativeChatMentionHint } from './NativeChatAutocompleteMenus'
+import { NativeChatCommunityPicker } from './NativeChatCommunityPicker'
+import type { AgentType } from '../../../../shared/agent-status-types'
 import { NativeChatComposerActions } from './NativeChatComposerActions'
 import type { NativeChatContextUsageSummary } from './native-chat-context-usage-summary'
 import { nativeChatComposerPlaceholder } from './native-chat-composer-target'
@@ -25,6 +27,8 @@ export type NativeChatComposerFieldProps = {
   /** Pane identity published to the drop pipeline so a native file drop lands
    *  only in the composer it was dropped on. */
   composerScopeKey: string
+  communitySkillTargetKey?: string
+  communitySkillAgent?: AgentType
   orchestrationPanelEnabled?: boolean
   textareaRef: RefObject<NativeChatComposerInput | null>
   draft: string
@@ -35,6 +39,7 @@ export type NativeChatComposerFieldProps = {
   activeSuggestion: number
   notice: string | null
   imageAttachments: readonly NativeChatComposerImageAttachment[]
+  communitySkillRetry?: (() => void) | undefined
   sendButtonDisabled: boolean
   isWorking: boolean
   attachDisabled: boolean
@@ -100,6 +105,8 @@ function imeComposedSegment(base: string, settled: string): string {
 
 export function NativeChatComposerField({
   composerScopeKey,
+  communitySkillTargetKey,
+  communitySkillAgent,
   orchestrationPanelEnabled = true,
   textareaRef,
   draft,
@@ -111,6 +118,7 @@ export function NativeChatComposerField({
   notice,
   imageAttachments,
   sendButtonDisabled,
+  communitySkillRetry,
   isWorking,
   attachDisabled,
   dictationDisabled,
@@ -177,7 +185,9 @@ export function NativeChatComposerField({
       <div className="px-3 pt-2 pb-4 sm:px-4">
         <div className="relative mx-auto w-full max-w-4xl">
           {autocomplete.mode === 'slash' ? (
-            <NativeChatPickerMenu
+            <NativeChatCommunityPicker
+              key={communitySkillTargetKey ?? composerScopeKey}
+              agent={communitySkillAgent}
               autocomplete={autocomplete}
               activeIndex={activeSuggestion}
               listboxId={pickerListboxId}
@@ -191,7 +201,17 @@ export function NativeChatComposerField({
           {notice ? (
             <div className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
               <ImageOff className="size-3.5 shrink-0" />
-              <span>{notice}</span>
+              <span role={communitySkillRetry ? 'alert' : 'status'}>{notice}</span>
+              {communitySkillRetry ? (
+                <button
+                  type="button"
+                  onClick={communitySkillRetry}
+                  className="flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-foreground hover:bg-accent hover:text-accent-foreground"
+                >
+                  <RotateCcw className="size-3" />
+                  {translate('components.native-chat.composer.retrySkills', 'Retry')}
+                </button>
+              ) : null}
             </div>
           ) : null}
           <div

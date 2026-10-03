@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { communitySkillReferences } from '@/lib/community-skill-invocation'
 import { translate } from '@/i18n/i18n'
 import { applyPickerSuggestion, type NativeChatPickerItem } from './native-chat-picker-items'
 import { pushHistory, type HistoryState } from './native-chat-composer-state'
@@ -32,14 +33,19 @@ export function useNativeChatComposerSubmit(args: {
   caret: number
   imageAttachments: readonly NativeChatComposerImageAttachment[]
   disabled: boolean
-  sendPty: () => void
-  sendStructured: (text: string, attachments: readonly NativeChatComposerImageAttachment[]) => void
+  sendPty: (text?: string) => void
+  prepareMessage?: (text: string, dispatch: (text: string) => void) => void
+  sendStructured: (
+    text: string,
+    attachments: readonly NativeChatComposerImageAttachment[],
+    sourceDraft?: string
+  ) => void
   setDraft: (value: string) => void
   setCaret: (caret: number) => void
   setHistory: (updater: (previous: HistoryState) => HistoryState) => void
 }): { send: () => void; goalMode: NativeChatComposerGoalMode } {
   const { caret, disabled, draft, imageAttachments, sendPty, sendStructured } = args
-  const { setCaret, setDraft, setHistory, structuredTransport } = args
+  const { setCaret, setDraft, setHistory, structuredTransport, prepareMessage } = args
   const threadGoal = structuredTransport?.threadGoal
   const [entered, setEntered] = useState(false)
   const active = entered && threadGoal !== undefined
@@ -73,6 +79,10 @@ export function useNativeChatComposerSubmit(args: {
   const setGoal = useCallback(() => {
     const objective = structuredAgentSessionGoalObjective(draft)
     if (!threadGoal || !structuredTransport || objective === '') {
+      return
+    }
+    if (communitySkillReferences(draft).length > 0) {
+      structuredTransport.onError('Send community skills as a chat message; exit goal mode first.')
       return
     }
     if (imageAttachments.length > 0) {
@@ -122,15 +132,32 @@ export function useNativeChatComposerSubmit(args: {
         setGoal()
       }
     } else if (!structuredTransport) {
-      sendPty()
+      if (!disabled) {
+        if (prepareMessage) {
+          prepareMessage(draft, sendPty)
+        } else {
+          sendPty()
+        }
+      }
     } else if ((draft.trim() !== '' || imageAttachments.length > 0) && !disabled) {
-      sendStructured(draft, imageAttachments)
+      if (prepareMessage) {
+        prepareMessage(draft, (text) => {
+          if (text === draft) {
+            sendStructured(text, imageAttachments)
+          } else {
+            sendStructured(text, imageAttachments, draft)
+          }
+        })
+      } else {
+        sendStructured(draft, imageAttachments)
+      }
     }
   }, [
     active,
     disabled,
     draft,
     imageAttachments,
+    prepareMessage,
     sendPty,
     sendStructured,
     setCaret,

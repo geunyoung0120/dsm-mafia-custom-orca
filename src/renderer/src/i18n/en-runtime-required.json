@@ -1214,13 +1214,31 @@
           "c9f96d4234": "error"
         },
         "GeneralUpdateSettingsSection": {
+          "02dc082e70": "Could not start the update download.",
+          "2a48034c4c": "Downloading v{{value0}}... {{value1}}%",
+          "31fd7150cf": "Checking for updates...",
           "3394d1f663": "checking",
+          "42717918f4": "Download Update (",
           "4c1c001813": "downloading",
           "6405510b92": "error",
           "7173352632": "idle",
           "82465b2444": "available",
+          "8311da27ba": "is available. Click \"Download Update\" to download it.",
+          "8a52ca1d02": "Release notes",
           "90eb7309d7": "not-available",
-          "a0832ccdb1": "downloaded"
+          "a0832ccdb1": "downloaded",
+          "a6b37929dc": "Version",
+          "b9ad70c30d": "Update error. {{value0}}",
+          "bd79d412f0": "Update check failed. {{value0}}",
+          "ceb579abaf": "Check for app updates and install a newer Orca version.",
+          "d69a09b672": "Updates are checked automatically on launch.",
+          "d89806cc89": "is ready to install.",
+          "d91ebfb87e": "Current version: {{value0}}",
+          "e1a647adc5": "Check for Updates",
+          "e3b9d21c07": "is available. Update Orca through your system package manager — Orca cannot install this release itself.",
+          "f2b1ccc12a": "Updates",
+          "f40d88390d": "You’re on the latest version.",
+          "f44299636f": "Restart to Update ("
         },
         "GeneralWorkspaceSettingsSection": {
           "externalWorktreesDescription": "Choose whether worktrees created outside Orca appear by default.",
@@ -1698,20 +1716,26 @@
             "5baf51c4d9": "open claude",
             "5d9ba08673": "copilot",
             "5fdf1dc2d1": "omp",
+            "79ff46776e": "Check for app updates and install a newer Orca version.",
             "8436ff6f8e": "Proxy Bypass Rules",
             "882c4896fd": "opencode",
             "8ea37a05bc": "agent",
             "9b0bc30160": "pi",
             "9da6c875e5": "dock",
+            "9e86ccd05c": "version",
             "aea7d2cccb": "openclaude",
             "c29f23ab57": "HTTP Proxy",
             "c61b14be7c": "grok",
+            "c9d8c1ce66": "release notes",
             "db11502270": "Default Agent",
+            "e15af4eb64": "Check for Updates",
             "e2da948f59": "Pre-select an AI coding agent in the new-workspace composer.",
             "e3b1d42f95": "Proxy URL for Orca network requests and local terminal children.",
+            "e49e739a59": "download",
             "e55d62dfa4": "launchpad",
             "eb8946b2c9": "Hosts that should bypass the configured HTTP proxy.",
-            "f472e97440": "aider"
+            "f472e97440": "aider",
+            "f89a94773c": "update"
           }
         },
         "integrations": {
@@ -1929,6 +1953,7 @@
           "9c95e1ce91": "Agents"
         },
         "SidebarSettingsHelpMenu": {
+          "29c56f30ee": "Check for Updates",
           "d396773ef0": "checking"
         },
         "SidebarToolbar": {
@@ -2704,32 +2729,6 @@
     }
   },
   "components": {
-    "orchestration-status": {
-      "tokens": "{{value0}} tokens",
-      "remote": "Remote usage unavailable",
-      "unsupported": "Usage unsupported",
-      "disabled": "Collection off",
-      "unavailable": "Usage unavailable",
-      "pending": "Awaiting usage",
-      "worker": "1 worker",
-      "workers": "{{count}} workers",
-      "scope": "Session totals",
-      "modelUnknown": "Model unknown",
-      "state": {
-        "pending": "Pending",
-        "working": "Working",
-        "blocked": "Needs input",
-        "waiting": "Waiting",
-        "done": "Response complete",
-        "failed": "Failed",
-        "unverifiable": "Unverifiable"
-      },
-      "recordModel": "Model from this session record: {{model}}",
-      "enableUsage": "Enable usage collection",
-      "connect": "Connect a task group",
-      "direct": "Tasks assigned from this pane",
-      "enableFailed": "Could not enable usage collection. Try again."
-    },
     "native-chat": {
       "ask": {
         "asked": "Asked:",
@@ -2768,9 +2767,6 @@
         "toggleDetails": "Toggle turn details",
         "workedFor": "Worked for {{value0}}",
         "workingFor": "Working for {{value0}}"
-      },
-      "subagents": {
-        "unnamed": "Subagent"
       },
       "tool": {
         "countN": "{{value0}} tool calls",

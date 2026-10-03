@@ -17,6 +17,7 @@ import {
 } from './structured-agent-session-host-lifetime'
 import { withTimeout } from '../../../shared/promise-timeout-fallback'
 import type { StructuredAgentSessionHostSession } from './structured-agent-session-host-types'
+import { clearStructuredCommunitySkillContexts } from './structured-community-skill-context'
 
 export type StructuredAgentSessionTeardownPhase = {
   name: string
@@ -176,5 +177,5 @@ export async function flushStructuredAgentSessionHost(
       context.deps.adapter.acknowledgeSessionRelease?.(sessionId),
     abandonQueued: (sessionId, session) =>
       abandonQueuedStructuredAgentSessionMessages(context.deps, sessionId, session.journal)
-  })
+  }).finally(() => clearStructuredCommunitySkillContexts(context.deps.store))
 }

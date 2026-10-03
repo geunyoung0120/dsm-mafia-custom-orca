@@ -13,6 +13,7 @@ import {
   resolveWorkerStartReadinessTimeoutMs
 } from '../../../../../../shared/orchestration-timing-budgets'
 import { assertWorkerStartTaskSpecWithinPromptBudget } from './worker-start-prompt-budget'
+import { pinRunCommunitySkillContext } from '../../../../orchestration/community-skill-inheritance'
 
 export const ORCHESTRATION_WORKER_START_METHODS = [
   defineMethod({
@@ -49,7 +50,9 @@ export const ORCHESTRATION_WORKER_START_METHODS = [
           `Task ${params.task} was not found in Run ${run.id}.`
         )
       }
-      await assertWorkerStartTaskSpecWithinPromptBudget(params.spec ?? existingTask!.spec)
+      const context = pinRunCommunitySkillContext(db, run, coordinator)
+      const spec = params.spec ?? existingTask!.spec
+      await assertWorkerStartTaskSpecWithinPromptBudget(context ? `${context}\n\n${spec}` : spec)
       const mode = decideWorkerStartMode({
         params,
         settings: readWorkerStartModeSettings(runtime)
@@ -62,6 +65,7 @@ export const ORCHESTRATION_WORKER_START_METHODS = [
           runtime,
           db,
           runId: run.id,
+          communitySkillContext: context,
           task: existingTask,
           orchestrationMutation,
           callerSession: orchestrationCaller

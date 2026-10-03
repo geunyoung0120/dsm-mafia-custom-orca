@@ -1,3 +1,5 @@
+import type { CommunitySkillMetadata } from '../../../../shared/community-skills'
+import { findCommunitySkillTrigger } from '@/lib/community-skill-invocation'
 import type { DiscoveredSkill, SkillSourceKind } from '../../../../shared/skills'
 import type { SlashCommandSuggestion } from '../../../../shared/native-chat-slash-commands'
 import {
@@ -14,6 +16,14 @@ export {
 } from '../../../../shared/native-chat-slash-commands'
 
 export type NativeChatPickerItem =
+  | {
+      kind: 'community-skill'
+      id: string
+      name: string
+      token: string
+      description: string
+      metadata: CommunitySkillMetadata
+    }
   | {
       kind: 'command'
       id: string
@@ -283,7 +293,13 @@ export function applyPickerSuggestion(
 ): { draft: string; caret: number; insertedToken: string } {
   const before = draft.slice(0, caret)
   const after = draft.slice(caret)
-  const match = before.match(LEADING_SLASH_TRIGGER) ?? before.match(MID_PROMPT_SLASH_TRIGGER)
+  const community = item.kind === 'community-skill' ? findCommunitySkillTrigger(draft, caret) : null
+  const match =
+    item.kind === 'community-skill'
+      ? community
+        ? [community.query, community.query]
+        : null
+      : (before.match(LEADING_SLASH_TRIGGER) ?? before.match(MID_PROMPT_SLASH_TRIGGER))
   if (!match) {
     return { draft, caret, insertedToken: '' }
   }

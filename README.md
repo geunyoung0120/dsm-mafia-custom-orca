@@ -1,17 +1,17 @@
 # Orca Custom
 
-[Orca](https://github.com/stablyai/orca)의 커스텀 배포판입니다. 오케스트레이션 현황 패널과 독립적인 Python 자동 업데이터를 포함합니다. 공식 Orca 팀의 배포판은 아닙니다.
+[Orca](https://github.com/stablyai/orca)의 커스텀 배포판입니다. 오케스트레이션 현황 패널, 클라우드 스킬 공유, 독립적인 Python 자동 업데이터를 포함합니다. 공식 Orca 팀의 배포판은 아닙니다.
 
 ## 설치
 
 [Releases](https://github.com/geunyoung0120/dsm-mafia-custom-orca/releases/latest)에서 내 컴퓨터에 맞는 ZIP을 받아 **전체 압축을 해제**한 뒤 설치 파일을 실행합니다. 최초 릴리스가 없다면 [Actions](https://github.com/geunyoung0120/dsm-mafia-custom-orca/actions)에서 빌드 상태를 확인하세요.
 
-| 컴퓨터 | ZIP 이름 끝부분 | 설치 파일 |
-| --- | --- | --- |
+| 컴퓨터              | ZIP 이름 끝부분    | 설치 파일                     |
+| ------------------- | ------------------ | ----------------------------- |
 | macOS Apple Silicon | `darwin-arm64.zip` | `Install Orca Custom.command` |
-| macOS Intel | `darwin-x64.zip` | `Install Orca Custom.command` |
-| Windows x64 | `win32-x64.zip` | `Install Orca Custom.cmd` |
-| Linux x64 | `linux-x64.zip` | `sh install-orca-custom.sh` |
+| macOS Intel         | `darwin-x64.zip`   | `Install Orca Custom.command` |
+| Windows x64         | `win32-x64.zip`    | `Install Orca Custom.cmd`     |
+| Linux x64           | `linux-x64.zip`    | `sh install-orca-custom.sh`   |
 
 Python은 설치 파일에 포함됩니다. 별도 Python·Node 설치나 AI 에이전트 실행은 필요하지 않습니다. Linux는 systemd 사용자 세션과 그래픽 데스크톱이 필요하며 알림에 `notify-send`를 사용합니다.
 
@@ -36,11 +36,11 @@ Python은 설치 파일에 포함됩니다. 별도 Python·Node 설치나 AI 에
 
 ## 설치 기록과 제어
 
-| OS | 관리 폴더 |
-| --- | --- |
-| macOS | `~/Library/Application Support/Orca Custom Manager` |
-| Windows | `%LOCALAPPDATA%/OrcaCustomManager` |
-| Linux | `${XDG_DATA_HOME:-~/.local/share}/orca-custom-manager` |
+| OS      | 관리 폴더                                              |
+| ------- | ------------------------------------------------------ |
+| macOS   | `~/Library/Application Support/Orca Custom Manager`    |
+| Windows | `%LOCALAPPDATA%/OrcaCustomManager`                     |
+| Linux   | `${XDG_DATA_HOME:-~/.local/share}/orca-custom-manager` |
 
 `current.json`은 설치 버전, `status.json`은 마지막 설치 상태, `failure.json`·`last-error.json`은 실패 사유입니다. `previous-app`에는 직전 앱이 남습니다. 프로젝트와 대화 데이터는 앱 교체 대상이 아닙니다.
 
@@ -53,6 +53,18 @@ Windows의 명령 결과는 관리 폴더의 `command-result.json`에 기록됩�
 ```
 
 예약 실행은 macOS LaunchAgent, Windows 작업 스케줄러, Linux systemd 사용자 타이머가 담당합니다. 꺼져 있거나 로그아웃한 동안은 실행되지 않습니다. 기존 데스크톱 자동 업데이트는 비활성화하여 공식 앱으로 덮어쓰는 것을 막습니다. SSH 원격 서버 업데이트는 원본 Orca의 별도 기능입니다.
+
+## 클라우드 스킬 공유
+
+Skills 화면의 **Community skills**에서 다른 사용자의 Markdown 스킬을 검색하고 원문과 버전을 확인할 수 있습니다. 읽기는 로그인 없이 가능하며, 게시·새 버전 등록·숨기기·신고에는 별도의 커뮤니티 계정이 필요합니다. 계정 이름은 사용자가 직접 등록하는 이름이며 GitHub 인증 계정은 아닙니다.
+
+Orca 내장 채팅에서 **`&`**를 입력하면 입력창 위에 선택 목록이 나옵니다. 선택하면 `&작성자/이름@버전`이 들어갑니다. 자동완성에서 선택한 항목을 사용하세요. Orca가 지정한 버전의 본문을 API로 읽고 해시를 확인한 뒤 에이전트에 전달합니다. 로컬 스킬 파일을 설치하지 않습니다. 목록 검색·HTTP 조회 자체에는 모델 토큰이 들지 않으며, 에이전트가 전달받은 본문을 읽을 때는 토큰을 사용합니다.
+
+구조화된 내장 채팅에서 시작한 오케스트레이션은 같은 스킬 버전을 워커와 하위 워커에 전달합니다. PTY 모드에서도 선택한 스킬의 일반 사용은 가능하지만, PTY 코디네이터의 자동 상속은 현재 지원하지 않습니다.
+
+조회에 실패하면 메시지를 보내지 않고 초안을 보존합니다. 여러 파일이나 스크립트에 의존하는 스킬은 지원하지 않습니다. 공유 스킬은 사용자 지침으로 전달되며 기존 도구 권한을 그대로 따릅니다. 앱 재시작 시 커뮤니티 로그인은 해제됩니다. 실행 문맥은 메모리에 유지하므로 재시작한 코디네이터에서 새 작업을 시작할 때는 스킬을 다시 선택하세요. 전달된 본문은 기존 대화 기록에 남을 수 있습니다. 초기 버전은 비밀번호 복구 기능이 없습니다.
+
+Neon PostgreSQL과 Vercel Hobby로 운영합니다. 사용자의 앱에는 공개 HTTPS 주소만 포함하며 DB 접속 비밀값을 배포하지 않습니다. 서비스 구조와 운영 절차는 [서비스 설명](community-service/README.md)을 참고하세요.
 
 ## 개발과 배포
 

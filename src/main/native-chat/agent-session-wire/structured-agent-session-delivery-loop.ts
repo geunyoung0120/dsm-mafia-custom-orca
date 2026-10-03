@@ -11,6 +11,7 @@
 // queued message: a child's exit only ends the child, and this loop reads why.
 
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
+import type { AgentJournalSubmission } from '../../../shared/agent-session-journal-types'
 import {
   agentSessionFailureFact,
   type SubmissionRejectionFact
@@ -59,6 +60,10 @@ export type StructuredAgentSessionDeliveryLoopDeps = {
   record: (sessionId: string) => AgentSessionRecord | null
   flushStreamedEvents: (sessionId: string) => Promise<void>
   now: () => number
+  prepareContextActivation?: (
+    sessionId: string,
+    submission: AgentJournalSubmission
+  ) => (() => (() => void) | undefined) | undefined
 }
 
 type Step = 'continue' | 'stop'
@@ -221,7 +226,8 @@ export class StructuredAgentSessionDeliveryLoop {
         flushStreamedEvents: () => this.deps.flushStreamedEvents(sessionId),
         now: this.deps.now
       },
-      next
+      next,
+      this.deps.prepareContextActivation?.(sessionId, next)
     )
     return 'continue'
   }

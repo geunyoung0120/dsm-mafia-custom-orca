@@ -12,12 +12,14 @@ const ESC = '\x1b'
  *  else the ESC keystroke the TUI reads as its interrupt. */
 export function useNativeChatComposerInterrupt(args: {
   cancelPendingSends: () => void
+  cancelCommunitySkillSend?: () => void
   isWorking: boolean
   onStop?: () => void
   resolveTarget: () => NativeChatResolvedTarget | null
 }): () => void {
-  const { cancelPendingSends, isWorking, onStop, resolveTarget } = args
+  const { cancelPendingSends, cancelCommunitySkillSend, isWorking, onStop, resolveTarget } = args
   return useCallback(() => {
+    cancelCommunitySkillSend?.()
     cancelPendingSends()
     if (isWorking && onStop) {
       onStop()
@@ -27,5 +29,5 @@ export function useNativeChatComposerInterrupt(args: {
     if (target) {
       sendRuntimePtyInput(target.settings, target.ptyId, ESC, 'driving')
     }
-  }, [cancelPendingSends, isWorking, onStop, resolveTarget])
+  }, [cancelPendingSends, cancelCommunitySkillSend, isWorking, onStop, resolveTarget])
 }

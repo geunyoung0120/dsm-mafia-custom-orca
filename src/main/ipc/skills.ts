@@ -21,9 +21,11 @@ import {
   resolveSkillDiscoveryTarget
 } from '../skills/skill-discovery-target'
 import { registerSkillCloudIpcHandlers } from './skill-cloud-ipc-handlers'
+import { registerCommunitySkillsHandlers } from './community-skills'
 import { handleMainWindowSkillIpc } from './skill-ipc-main-window'
 
 export function registerSkillsHandlers(store: Store, runtime?: OrcaRuntimeService): void {
+  registerCommunitySkillsHandlers()
   const discover = async (target?: SkillDiscoveryTarget): Promise<SkillDiscoveryResult> => {
     const parsedTarget = target ? SkillDiscoveryTargetSchema.parse(target) : undefined
     const resolvedTarget = resolveSkillDiscoveryTarget(parsedTarget)

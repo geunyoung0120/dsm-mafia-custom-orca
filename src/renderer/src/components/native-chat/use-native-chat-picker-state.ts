@@ -2,6 +2,7 @@ import type { NativeChatComposerInput } from './native-chat-composer-input'
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useId,
   useMemo,
   useRef,
@@ -23,6 +24,15 @@ import {
   type NativeChatPickerItem,
   type NativeChatSendClassification
 } from './native-chat-composer-state'
+import { getCommunitySkillsApi } from '@/lib/community-skill-api'
+import {
+  findCommunitySkillTrigger,
+  type CommunitySkillSelections
+} from '@/lib/community-skill-invocation'
+import { readCommunitySkillSelectionState } from './native-chat-community-selection-cache'
+import { setBoundedScopeCacheEntry } from './native-chat-composer-scope-cache'
+import { useNativeChatCommunitySkills } from './use-native-chat-community-skills'
+import { deriveCommunitySkillAutocomplete } from './native-chat-community-picker'
 import { useNativeChatSkills } from './use-native-chat-skills'
 import {
   emitNativeChatPickerItemAccepted,
@@ -32,6 +42,7 @@ import {
 
 export type NativeChatPickerState = {
   autocomplete: ComposerAutocomplete
+  readCommunitySelections: () => CommunitySkillSelections
   listboxId: string
   retrySkills: () => void
   classifySend: (draft: string) => NativeChatSendClassification
@@ -45,6 +56,7 @@ export function useNativeChatPickerState(args: {
   agent: AgentType
   terminalTabId: string
   draftScopeKey: string
+  targetKey?: string
   draft: string
   caret: number
   agentCommands: readonly SlashCommandSuggestion[]
@@ -71,25 +83,57 @@ export function useNativeChatPickerState(args: {
   const profile = useMemo(() => getNativeChatAgentProfile(agent), [agent])
   const skillPickerTriggered = isSkillPickerTriggered(draft.slice(0, caret), profile)
   const discovery = useNativeChatSkills(agent, terminalTabId, skillPickerTriggered)
+  const communityTrigger = findCommunitySkillTrigger(draft, caret)
+  const communityTarget = args.targetKey ?? `${draftScopeKey}:${agent}`
+  const selectionState = useMemo(
+    () => readCommunitySkillSelectionState(communityTarget),
+    [communityTarget]
+  )
+  const readCommunitySelections = useCallback(() => selectionState.selections, [selectionState])
+  const typedSelected =
+    communityTrigger !== null && selectionState.selections.has(`&${communityTrigger.query}`)
+  const community = useNativeChatCommunitySkills({
+    query: typedSelected ? null : (communityTrigger?.query ?? null),
+    targetKey: communityTarget,
+    agent,
+    api: getCommunitySkillsApi()
+  })
+  const owner = useRef<object | null>(null)
+  useLayoutEffect(() => {
+    owner.current = {}
+    return () => {
+      owner.current = null
+    }
+  }, [communityTarget])
   const listboxId = `native-chat-picker-${useId().replaceAll(':', '')}`
-  const dismissalContext = `${draftScopeKey}:${agent}`
+  const dismissalContext = `${communityTarget}:${agent}`
   const [dismissed, setDismissed] = useState<{ context: string; triggerKey: string } | null>(null)
   const skillOriginRef = useRef<string | null>(null)
   const lastOpenKeyRef = useRef<string | null>(null)
   const autocomplete = useMemo(
     () =>
-      deriveComposerAutocomplete(
-        draft,
-        caret,
-        agentCommands,
-        discovery.skills,
-        profile,
-        discovery,
-        dismissed?.context === dismissalContext ? dismissed.triggerKey : null,
-        sessionSkillNames
-      ),
+      typedSelected
+        ? { mode: 'none' as const }
+        : (deriveCommunitySkillAutocomplete(
+            draft,
+            caret,
+            community,
+            dismissed?.context === dismissalContext ? dismissed.triggerKey : null
+          ) ??
+          deriveComposerAutocomplete(
+            draft,
+            caret,
+            agentCommands,
+            discovery.skills,
+            profile,
+            discovery,
+            dismissed?.context === dismissalContext ? dismissed.triggerKey : null,
+            sessionSkillNames
+          )),
     [
       agentCommands,
+      community,
+      typedSelected,
       caret,
       dismissalContext,
       dismissed,
@@ -116,7 +160,9 @@ export function useNativeChatPickerState(args: {
     const openKey = `${dismissalContext}:${autocomplete.triggerKey}`
     if (lastOpenKeyRef.current !== openKey) {
       lastOpenKeyRef.current = openKey
-      emitNativeChatPickerOpened({ agent, prefix: autocomplete.prefix })
+      if (autocomplete.prefix === '/') {
+        emitNativeChatPickerOpened({ agent, prefix: autocomplete.prefix })
+      }
     }
   }, [agent, autocomplete, dismissalContext])
 
@@ -130,17 +176,53 @@ export function useNativeChatPickerState(args: {
         const from = result.caret - result.insertedToken.length - 1
         textareaRef.current.insertSkill(from, caret, result.insertedToken)
       }
+      if (!result.insertedToken) {
+        return
+      }
+      if (item.kind === 'community-skill') {
+        const previous = selectionState.selections.get(item.token)
+        if (
+          previous &&
+          (previous.id !== item.metadata.id || previous.digest !== item.metadata.digest)
+        ) {
+          selectionState.ambiguousTokens.add(item.token)
+          selectionState.selections.delete(item.token)
+        } else if (!selectionState.ambiguousTokens.has(item.token)) {
+          setBoundedScopeCacheEntry(selectionState.selections, item.token, item.metadata)
+        }
+      }
       setDraft(result.draft)
       setCaret(result.caret)
       setActiveSuggestion(0)
       setDismissed(null)
       skillOriginRef.current = item.kind === 'skill' ? result.insertedToken : null
-      emitNativeChatPickerItemAccepted({ agent, itemKind: item.kind })
+      if (item.kind !== 'community-skill') {
+        emitNativeChatPickerItemAccepted({ agent, itemKind: item.kind })
+      }
       const textarea = textareaRef.current
+      const requestOwner = owner.current
       textarea?.focus()
-      requestAnimationFrame(() => textarea?.setSelectionRange(result.caret, result.caret))
+      requestAnimationFrame(() => {
+        if (
+          requestOwner !== null &&
+          owner.current === requestOwner &&
+          textareaRef.current === textarea
+        ) {
+          textarea?.setSelectionRange(result.caret, result.caret)
+        }
+      })
     },
-    [agent, autocomplete, caret, draft, setActiveSuggestion, setCaret, setDraft, textareaRef]
+    [
+      agent,
+      autocomplete,
+      caret,
+      draft,
+      selectionState,
+      setActiveSuggestion,
+      setCaret,
+      setDraft,
+      textareaRef
+    ]
   )
 
   const handleDraftOrCaretChange = useCallback(
@@ -159,21 +241,32 @@ export function useNativeChatPickerState(args: {
         setDismissed(null)
         return
       }
-      const next = deriveComposerAutocomplete(
-        value,
-        nextCaret,
-        agentCommands,
-        discovery.skills,
-        profile,
-        discovery,
-        null,
-        sessionSkillNames
-      )
+      const next =
+        deriveCommunitySkillAutocomplete(value, nextCaret, community, null) ??
+        deriveComposerAutocomplete(
+          value,
+          nextCaret,
+          agentCommands,
+          discovery.skills,
+          profile,
+          discovery,
+          null,
+          sessionSkillNames
+        )
       if (next.mode !== 'slash' || next.triggerKey !== dismissed.triggerKey) {
         setDismissed(null)
       }
     },
-    [agentCommands, dismissalContext, dismissed, discovery, draft, profile, sessionSkillNames]
+    [
+      agentCommands,
+      community,
+      dismissalContext,
+      dismissed,
+      discovery,
+      draft,
+      profile,
+      sessionSkillNames
+    ]
   )
 
   const classifySend = useCallback(
@@ -200,7 +293,11 @@ export function useNativeChatPickerState(args: {
   return {
     autocomplete,
     listboxId,
-    retrySkills: discovery.retry,
+    retrySkills:
+      autocomplete.mode === 'slash' && autocomplete.prefix === '&'
+        ? community.retry
+        : discovery.retry,
+    readCommunitySelections,
     classifySend,
     clearSkillOrigin,
     completeItem,

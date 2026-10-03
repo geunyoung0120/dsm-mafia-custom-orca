@@ -21,6 +21,7 @@ import type {
 import { structuredAgentSessionConversationFence } from './structured-agent-session-provider-child'
 import { structuredAgentSessionFailureWordsContext } from './structured-agent-session-send-preparation'
 import { recoverStructuredRewind } from './structured-rewind-recovery'
+import { prepareQueuedCommunitySkillContextActivation } from './structured-community-skill-context'
 
 export type StructuredAgentSessionConversationDelivery = {
   loop: StructuredAgentSessionDeliveryLoop
@@ -73,6 +74,12 @@ export function createStructuredAgentSessionConversationDelivery(input: {
     onError: (sessionId, error) => deps.onEventSinkError?.({ sessionId, error }),
     record: (sessionId) => deps.store.getRecord(sessionId),
     flushStreamedEvents: input.flushStreamedEvents,
+    prepareContextActivation: (sessionId, submission) =>
+      prepareQueuedCommunitySkillContextActivation(
+        deps.store,
+        sessionId,
+        submission.queuedMessageId
+      ),
     now: () => deps.now?.() ?? Date.now()
   })
   const adoptOpened = async (

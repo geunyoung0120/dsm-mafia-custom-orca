@@ -8,6 +8,9 @@ export const SHARED_SKILL_AGENT = 'shared'
 export type SkillAgentOption = { id: string; label: string; count: number }
 
 export function skillAgentLabel(agentId: string): string {
+  if (agentId === 'openclaude') {
+    return 'OpenClaude'
+  }
   if (agentId === SHARED_SKILL_AGENT) {
     return translate('auto.components.skills.filter.sharedAgent', 'Shared (.agents)')
   }

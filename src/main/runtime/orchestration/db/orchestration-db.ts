@@ -10,6 +10,10 @@ import {
 import { createTables } from './schema/create-tables'
 import { migrate } from './schema/migrate'
 import { backfillStructuredWorkerOrcaSessionIds } from './schema/structured-worker-orca-session-backfill'
+import {
+  clearRunCommunitySkillContexts,
+  clearAttachmentCommunitySkillContexts
+} from '../community-skill-inheritance'
 
 class OrchestrationDbCore {
   db: Database.Database
@@ -39,6 +43,8 @@ class OrchestrationDbCore {
 
   close(): void {
     this.db.close()
+    clearRunCommunitySkillContexts(this)
+    clearAttachmentCommunitySkillContexts(this)
   }
 }
 

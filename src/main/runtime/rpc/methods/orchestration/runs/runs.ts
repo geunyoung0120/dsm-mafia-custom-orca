@@ -5,6 +5,8 @@ import { exposeRun } from './run-receipt'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import type { OrchestrationCallerIdentity } from '../../../../orchestration/orchestration-caller-identity'
 import { currentDispatchAssigneeRun } from '../messaging/recipient-routing'
+import { pinRunCommunitySkillContext } from '../../../../orchestration/community-skill-inheritance'
+import { resolveDispatchCreator } from './dispatch-creator'
 import {
   RunCreateParams,
   RunCurrentParams,
@@ -44,6 +46,12 @@ export const ORCHESTRATION_RUN_METHODS = [
         coordinatorPaneKey: caller.paneKey,
         coordinatorOrcaSessionId: caller.orcaSessionId
       })
+      pinRunCommunitySkillContext(
+        db,
+        run,
+        caller,
+        resolveDispatchCreator(runtime, params.from, orchestrationCaller)
+      )
       runtime.cancelMessageWaiters(params.from)
       cancelBoundDispatchWaiters(runtime, caller, run.id)
       if (priorRun) {
@@ -101,6 +109,12 @@ export const ORCHESTRATION_RUN_METHODS = [
           `Run ${params.id} was not found or is inspect-only.`
         )
       }
+      pinRunCommunitySkillContext(
+        db,
+        run,
+        caller,
+        resolveDispatchCreator(runtime, params.from, orchestrationCaller)
+      )
       runtime.cancelMessageWaiters(params.from)
       cancelBoundDispatchWaiters(runtime, caller, run.id)
       runtime.cancelMessageWaiters(`run:${params.id}`)

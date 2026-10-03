@@ -1,3 +1,5 @@
+import { getCommunitySkillsApi } from '@/lib/community-skill-api'
+import { useNativeChatCommunitySkillSend } from './use-native-chat-community-skill-send'
 import type { NativeChatComposerInput } from './native-chat-composer-input'
 import { forwardRef, useCallback, useState } from 'react'
 import { useAppStore } from '../../store'
@@ -29,12 +31,10 @@ import type {
   NativeChatComposerHandle,
   NativeChatComposerProps
 } from './native-chat-composer-types'
-import { useNativeChatPtyComposerSend } from './use-native-chat-pty-composer-send'
-import { useNativeChatStructuredComposerSend } from './use-native-chat-structured-composer-send'
+import { useNativeChatComposerMessageSend } from './use-native-chat-composer-message-send'
 import { useImeEnterGestureOwnership } from '@/lib/ime-composition-keyboard-event'
 import { useNativeChatComposerAppMenuSelection } from './use-native-chat-composer-app-menu-selection'
 import { useNativeChatWorkspaceFileDrop } from './use-native-chat-workspace-file-drop'
-import { useNativeChatComposerSubmit } from './use-native-chat-composer-submit'
 
 export type { NativeChatComposerHandle, NativeChatComposerProps }
 
@@ -109,10 +109,20 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       agent,
       structuredTransport
     )
+    const targetKey = JSON.stringify([
+      paneKey,
+      terminalTabId,
+      targetPtyId,
+      agent,
+      structuredTransport?.sessionId,
+      structuredTransport?.worktreeId,
+      structuredTransport?.runtimeEnvironmentId
+    ])
     const picker = useNativeChatPickerState({
       agent,
       terminalTabId,
       draftScopeKey: paneKey,
+      targetKey,
       draft,
       caret,
       agentCommands,
@@ -179,10 +189,22 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
     })
     // A pasted image has no agent-readable path until its save lands; sending
     // mid-save would ship the message without the image the chip promises.
+    const communitySend = useNativeChatCommunitySkillSend({
+      targetKey: `${targetKey}:${canSend}`,
+      draft,
+      attachments: imageAttachments,
+      agent,
+      selections: picker.readCommunitySelections,
+      api: getCommunitySkillsApi(),
+      isComposing: imeEnterGesture.isComposing
+    })
     const hasPendingAttachment = imageAttachments.some((attachment) => attachment.pending)
     const sendButtonDisabled = isWorking
       ? !hasPty || !onStop
-      : disabled || hasPendingAttachment || (draft.trim() === '' && imageAttachments.length === 0)
+      : disabled ||
+        communitySend.pending ||
+        hasPendingAttachment ||
+        (draft.trim() === '' && imageAttachments.length === 0)
 
     const { attachExternalPaths, resolveAttachmentOwner } = useNativeChatExternalAttachments({
       terminalTabId,
@@ -200,13 +222,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       setCaret,
       setHistory,
       setActiveSuggestion,
-      targetKey: JSON.stringify([
-        paneKey,
-        targetPtyId,
-        structuredTransport?.sessionId,
-        structuredTransport?.worktreeId,
-        structuredTransport?.runtimeEnvironmentId
-      ]),
+      targetKey,
       agent,
       disabled,
       resolveAttachmentOwner,
@@ -243,23 +259,15 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
     const contextUsageSummary = useNativeChatContextUsageSummary(structuredTransport)
     const sessionOptionsSnapshot = structuredTransport?.optionSnapshot ?? ptySessionOptionsSnapshot
 
-    const sendStructured = useNativeChatStructuredComposerSend({
+    const { send, goalMode, sendStructured } = useNativeChatComposerMessageSend({
       agent,
+      targetKey: `${targetKey}:${canSend}`,
       draft,
-      imageAttachments,
-      structuredTransport,
-      clearImageAttachments,
-      clearSkillOrigin,
-      setHistory,
-      setDraft,
-      setCaret
-    })
-
-    const sendPty = useNativeChatPtyComposerSend({
-      agent,
-      draft,
+      caret,
       imageAttachments,
       disabled,
+      structuredTransport,
+      prepareMessage: communitySend.send,
       isDispatchingSessionOption,
       launchDraft: launchSeed?.launchDraft,
       launchDraftResolved: launchSeed?.launchDraftResolved === true,
@@ -279,21 +287,10 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       clearImageAttachments,
       setNotice
     })
-    const { send, goalMode } = useNativeChatComposerSubmit({
-      structuredTransport,
-      draft,
-      caret,
-      imageAttachments,
-      disabled,
-      sendPty,
-      sendStructured,
-      setDraft,
-      setCaret,
-      setHistory
-    })
 
     const interrupt = useNativeChatComposerInterrupt({
       cancelPendingSends,
+      cancelCommunitySkillSend: communitySend.cancel,
       isWorking,
       onStop,
       resolveTarget
@@ -356,6 +353,8 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
     return (
       <NativeChatComposerField
         composerScopeKey={paneKey}
+        communitySkillTargetKey={targetKey}
+        communitySkillAgent={agent}
         orchestrationPanelEnabled={orchestrationPanelEnabled}
         textareaRef={textareaRef}
         draft={draft}
@@ -364,9 +363,13 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
         canSend={canSend}
         autocomplete={autocomplete}
         activeSuggestion={activeSuggestion}
-        notice={notice}
+        notice={
+          communitySend.error ??
+          (communitySend.pending ? 'Loading selected community skills...' : notice)
+        }
         imageAttachments={imageAttachments}
         sendButtonDisabled={sendButtonDisabled}
+        communitySkillRetry={communitySend.error ? send : undefined}
         isWorking={isWorking}
         attachDisabled={disabled}
         dictationDisabled={dictationDisabled}

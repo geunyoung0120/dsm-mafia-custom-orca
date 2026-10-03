@@ -21,6 +21,7 @@ import type { StructuredAgentSessionHostSession } from './structured-agent-sessi
 import { StructuredAgentSessionIdleSweep } from './structured-agent-session-idle-sweep'
 import { AGENT_SESSION_NOT_ATTACHED } from './structured-agent-session-mutation-admission'
 import { adapterSupportsRecord } from './structured-agent-session-provider-support'
+import { forgetStructuredCommunitySkillContext } from './structured-community-skill-context'
 
 export type StructuredAgentSessionConversationLifetime = ReturnType<
   typeof createStructuredAgentSessionConversationLifetime
@@ -157,6 +158,7 @@ export function createStructuredAgentSessionConversationLifetime(host: {
           cause: 'evict'
         })
         await closeConversation(sessionId)
+        forgetStructuredCommunitySkillContext(deps().store, sessionId)
       })
   }
 }

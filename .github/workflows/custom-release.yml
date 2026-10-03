@@ -17,7 +17,21 @@ env:
   NODE_OPTIONS: --max-old-space-size=5120
 
 jobs:
+  community-service:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Verify standalone shared skill API
+        working-directory: community-service
+        run: |
+          npm ci --ignore-scripts
+          npm test
+          npm audit --omit=dev --audit-level=high
   build:
+    needs: community-service
     if: github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
@@ -61,6 +75,7 @@ jobs:
       - name: Verify updater and app changes
         run: |
           python -m unittest discover -s distribution/tests -v
+          pnpm exec vitest run --config config/vitest.config.ts src/main/skills/community-skills-client.test.ts src/shared/community-skill-context.test.ts src/main/native-chat/agent-session-wire/structured-community-skill-context.test.ts src/main/native-chat/agent-session-wire/structured-community-skill-inheritance.test.ts src/main/native-chat/agent-session-wire/structured-agent-session-delivery-loop.test.ts src/main/native-chat/agent-session-wire/structured-agent-session-turns.test.ts src/main/runtime/rpc/methods/orchestration/worker/worker-start-readiness-settlement.test.ts src/main/ipc/skill-ipc-main-window.test.ts src/renderer/src/components/community-skills src/renderer/src/components/skills/CommunitySkillsEntry.test.tsx src/renderer/src/components/native-chat src/renderer/src/lib/community-skill-invocation.test.ts
           pnpm exec vitest run --config config/vitest.config.ts src/main/python-update-status.test.ts src/main/python-distribution-update-status.test.ts src/main/runtime/runtime-agent-orchestration-structured.test.ts src/renderer/src/components/status-bar/PythonUpdateReadySegment.test.tsx src/renderer/src/components/native-chat/native-chat-composer-composition.test.tsx src/main/custom-distribution-updater.test.ts src/main/menu/register-app-menu.test.ts src/renderer/src/components/settings/GeneralUpdateSettingsSection.test.tsx src/renderer/src/components/sidebar/SidebarSettingsHelpMenu.test.tsx src/main/startup/configure-process.test.ts src/renderer/src/components/orchestration-status
           pnpm tc:node
           pnpm tc:cli
@@ -106,7 +121,7 @@ jobs:
           set -euo pipefail
           tag="v$CUSTOM_RELEASE_VERSION"
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --draft --target "$RELEASE_COMMIT" --title "Orca Custom $CUSTOM_RELEASE_VERSION" --notes "Orca Custom with the orchestration panel and Python automatic updater. Download the ZIP for your OS, extract it, and run its installer. All four native builds passed before publication."
+            gh release create "$tag" --draft --target "$RELEASE_COMMIT" --title "Orca Custom $CUSTOM_RELEASE_VERSION" --notes "Orca Custom with cloud skill sharing (& picker), the orchestration panel and Python automatic updater. Download the ZIP for your OS, extract it, and run its installer. All four native builds passed before publication."
           fi
           gh release upload "$tag" release/*.zip release/release.json release/SHA256SUMS.txt --clobber
           gh release edit "$tag" --draft=false --latest

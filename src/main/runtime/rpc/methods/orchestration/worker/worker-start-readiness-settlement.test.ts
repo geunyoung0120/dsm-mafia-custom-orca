@@ -10,7 +10,7 @@ const { deliverAndSettleWorkerStartReadiness } = await import('./worker-start-re
 
 function settle(delivered: 'accepted' | undefined) {
   const db = {
-    getWorkerDispatch: () => ({ state: 'starting' }),
+    getWorkerDispatch: () => ({ state: 'starting', start_options: '{}' }),
     markWorkerStartUnknown: vi.fn(() => ({
       stage: 'turn_start_unobserved',
       residual_resources: '[]'
@@ -31,6 +31,7 @@ function settle(delivered: 'accepted' | undefined) {
   }
   const args = {
     runtime: {
+      getOrchestrationDb: () => db,
       getNestedWorkerMaxDepth: () => 3,
       getTerminalOrchestrationCliCommand: () => 'orca'
     },

@@ -13,6 +13,7 @@ import type { NativeChatComposerImageAttachment } from './NativeChatComposerFiel
 
 export type UseNativeChatStructuredComposerSendArgs = {
   agent: AgentType
+  targetKey?: string
   draft?: string
   imageAttachments: readonly NativeChatComposerImageAttachment[]
   structuredTransport?: NativeChatStructuredComposerTransport
@@ -27,6 +28,7 @@ export type UseNativeChatStructuredComposerSendArgs = {
  *  once the transport accepts (the PTY path has its own sibling hook). */
 export function useNativeChatStructuredComposerSend({
   agent,
+  targetKey,
   draft,
   imageAttachments,
   structuredTransport,
@@ -37,14 +39,22 @@ export function useNativeChatStructuredComposerSend({
   setCaret
 }: UseNativeChatStructuredComposerSendArgs): (
   text: string,
-  attachments?: readonly NativeChatComposerImageAttachment[]
+  attachments?: readonly NativeChatComposerImageAttachment[],
+  sourceDraft?: string
 ) => void {
+  const owner = useRef<object | null>(null)
+  useLayoutEffect(() => {
+    owner.current = {}
+    return () => {
+      owner.current = null
+    }
+  }, [targetKey, structuredTransport?.sessionId, structuredTransport?.runtimeEnvironmentId])
   const composition = useRef({ draft, imageAttachments })
   useLayoutEffect(() => {
     composition.current = { draft, imageAttachments }
   }, [draft, imageAttachments])
   return useCallback(
-    (text: string, attachments = imageAttachments): void => {
+    (text: string, attachments = imageAttachments, sourceDraft?: string): void => {
       if (!structuredTransport) {
         return
       }
@@ -55,9 +65,20 @@ export function useNativeChatStructuredComposerSend({
         structuredTransport.onError('Remove attachments before using a chat-session command.')
         return
       }
+      const communityMessage = sourceDraft !== undefined
       const submitted = composition.current
-      void dispatchNativeChatStructuredComposerText(structuredTransport, text, attachments)
+      const requestOwner = owner.current
+      const isCurrent = (): boolean => requestOwner !== null && owner.current === requestOwner
+      void dispatchNativeChatStructuredComposerText(
+        structuredTransport,
+        text,
+        attachments,
+        isCurrent
+      )
         .then(({ accepted, error }) => {
+          if (!isCurrent()) {
+            return
+          }
           structuredTransport.onError(error)
           if (!accepted) {
             return
@@ -70,9 +91,9 @@ export function useNativeChatStructuredComposerSend({
             structuredTransport.sessionId,
             structuredTransport.runtimeEnvironmentId
           )
-          setHistory((previous) => pushHistory(previous, text))
+          setHistory((previous) => pushHistory(previous, sourceDraft ?? text))
           if (
-            hostCommand &&
+            (hostCommand || communityMessage) &&
             (composition.current.draft !== submitted.draft ||
               composition.current.imageAttachments !== submitted.imageAttachments)
           ) {
@@ -83,9 +104,11 @@ export function useNativeChatStructuredComposerSend({
           clearSkillOrigin()
           clearImageAttachments()
         })
-        .catch((error) =>
-          structuredTransport.onError(error instanceof Error ? error.message : String(error))
-        )
+        .catch((error) => {
+          if (isCurrent()) {
+            structuredTransport.onError(error instanceof Error ? error.message : String(error))
+          }
+        })
     },
     [
       agent,

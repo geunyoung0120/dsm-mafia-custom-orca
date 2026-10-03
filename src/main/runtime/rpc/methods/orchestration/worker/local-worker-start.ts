@@ -29,6 +29,10 @@ import { tearDownFailedWorkerStart } from './failed-worker-start-teardown'
 import { requireWorkerAuthority, type WorkerEffect } from './worker-topology'
 import { prepareLocalWorkerStart } from './worker-start-validation'
 import { deliverAndSettleWorkerStartReadiness } from './worker-start-readiness-settlement'
+import {
+  pinRunCommunitySkillContext,
+  assertCommunitySkillsOnWorker
+} from '../../../../orchestration/community-skill-inheritance'
 
 type WorkerStartMutation = {
   callerFingerprint: string
@@ -51,10 +55,12 @@ export async function startLocalWorker(args: {
 }): Promise<unknown> {
   const { params, runtime, db, run, coordinator, callerSession, existingTask } = args
   const { orchestrationMutation } = args
+  const communitySkillContext = pinRunCommunitySkillContext(db, run, coordinator)
   const coordinatorPane = coordinator?.paneKey ?? null
   const requestedWorktree = params.worktree ?? 'current'
   const createsWorktree = requestedWorktree === 'new-child' || requestedWorktree === 'new-top-level'
   const { agent, launch } = prepareLocalWorkerStart({ params, createsWorktree, runtime })
+  await assertCommunitySkillsOnWorker(communitySkillContext, runtime, params)
 
   const coordinatorWorktreeId = await resolveDispatchCallerWorktreeId(
     runtime,
@@ -88,6 +94,7 @@ export async function startLocalWorker(args: {
   let mode = await resolveWorkerStartModeOnHost(runtime, args.mode, resolvedWorktree?.id, agent)
 
   const startOptions = {
+    communitySkillContext,
     worktree: requestedWorktree,
     mode,
     resolvedWorktreeId: resolvedWorktree?.id ?? null,

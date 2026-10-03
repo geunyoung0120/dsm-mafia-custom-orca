@@ -1,4 +1,5 @@
 import type { SkillDiscoveryResult, SkillDiscoveryTarget } from '../../shared/skills'
+import type { CommunitySkillsApi } from '../../shared/community-skills'
 import type {
   SkillCloudOperation,
   SkillCloudOwnedShare,
@@ -39,6 +40,7 @@ import type {
 } from '../../shared/skill-delete-contract'
 
 export type SkillsApi = {
+  community?: CommunitySkillsApi
   discover: (target?: SkillDiscoveryTarget) => Promise<SkillDiscoveryResult>
   freshnessInventory: () => Promise<SkillFreshnessInventory>
   startUpdateRun: (names: string[]) => Promise<SkillUpdateStartResult>

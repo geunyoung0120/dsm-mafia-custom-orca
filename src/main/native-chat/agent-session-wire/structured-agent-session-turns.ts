@@ -85,18 +85,32 @@ async function dispatchSafely(
   ctx: AgentSessionHandoverContext,
   clientMessageId: string,
   body: AgentJournalMessageItem,
-  requestedAt: number
+  requestedAt: number,
+  activateContext?: () => (() => void) | undefined
 ): Promise<AgentSessionDispatchOutcome> {
+  let rollbackContext: (() => void) | undefined
   try {
-    return await ctx.adapter.dispatch({
+    const outcome = await ctx.adapter.dispatch({
       sessionId: ctx.sessionId,
       clientMessageId,
       body,
       fence: ctx.fence,
-      requestedAt
+      requestedAt,
+      ...(activateContext
+        ? {
+            beforeDispatch: async () => {
+              rollbackContext = activateContext()
+            }
+          }
+        : {})
     })
+    if (outcome.state === 'rejected') {
+      rollbackContext?.()
+    }
+    return outcome
   } catch (error) {
     if (ctx.providerChildPhase?.() === 'starting') {
+      rollbackContext?.()
       return {
         state: 'rejected',
         ...structuredAgentSessionStartFailure({ error }, ctx.failureTextContext)
@@ -173,7 +187,8 @@ export type AgentSessionHandoverContext = StructuredAgentSessionCommandHandoverC
  */
 export async function handOverSubmission(
   ctx: AgentSessionHandoverContext,
-  submission: AgentJournalSubmission
+  submission: AgentJournalSubmission,
+  activateContext?: () => (() => void) | undefined
 ): Promise<void> {
   const { clientMessageId } = submission
   const body = ctx.journal.itemBody(agentJournalSubmissionKey(clientMessageId))
@@ -203,7 +218,8 @@ export async function handOverSubmission(
     ctx,
     clientMessageId,
     body,
-    structuredAgentSessionHandoverOrigin(ctx.journal, submission)
+    structuredAgentSessionHandoverOrigin(ctx.journal, submission),
+    activateContext
   )
   // An admission needs no dispatch row: the submission is already pending.
   if (outcome.state === 'admitted') {

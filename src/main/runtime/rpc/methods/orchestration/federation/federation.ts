@@ -22,11 +22,13 @@ import {
 import { FederationAttachStartParams } from './federation-start-schema'
 import { failFederatedAttachmentWithReceipt } from './federation-start-receipt'
 import { prepareFederationAttachmentWorkerStart } from '../worker/worker-start-validation'
-import {
-  isWorkerStartTimeoutWithinTimerLimit,
-  resolveWorkerStartReadinessTimeoutMs
-} from '../../../../../../shared/orchestration-timing-budgets'
+import { resolveWorkerStartReadinessTimeoutMs } from '../../../../../../shared/orchestration-timing-budgets'
+import { assertWorkerStartTimeoutWithinTimerLimit } from '../worker/worker-start-timeout-guard'
 import { assertWorkerStartTaskSpecWithinPromptBudget } from '../worker/worker-start-prompt-budget'
+import {
+  pinAttachmentCommunitySkillContext,
+  assertCommunitySkillsOnWorker
+} from '../../../../orchestration/community-skill-inheritance'
 
 export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
   defineMethod({
@@ -40,12 +42,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
         )
       }
       await assertWorkerStartTaskSpecWithinPromptBudget(params.taskSpec)
-      if (!isWorkerStartTimeoutWithinTimerLimit(params.timeoutMs)) {
-        throw new OrchestrationError(
-          'invalid_argument',
-          '--timeout-ms is too large for worker-start transport grace; the derived timeout must fit within the timer limit.'
-        )
-      }
+      assertWorkerStartTimeoutWithinTimerLimit(params.timeoutMs)
       const readinessTimeoutMs = resolveWorkerStartReadinessTimeoutMs(params.timeoutMs)
       if (params.worktree === 'current' || params.worktree === 'new-child') {
         throw new OrchestrationError(
@@ -59,6 +56,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
         createsWorktree,
         runtime
       })
+      await assertCommunitySkillsOnWorker(params.taskSpec, runtime, params)
       if (createsWorktree) {
         await assertOrchestrationWorktreeCreationSupported({
           runtime,
@@ -78,6 +76,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
         depth: params.depth,
         mutationReceipt: orchestrationMutation
       })
+      pinAttachmentCommunitySkillContext(db, params.dispatchId, params.taskSpec)
       const effects: FederationEffect[] = []
       let failedStage = createsWorktree ? 'worktree_create' : 'worktree_resolve'
       let worktree
@@ -107,7 +106,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
             displayName: params.displayName,
             displayNameKind: params.displayNameKind,
             comment: params.comment,
-            // setupDecision runs setup without the legacy runHooks activation side effect.
+            // setupDecision avoids the legacy runHooks activation side effect.
             runHooks: false,
             setupDecision,
             awaitTerminalProvisioning: true,
@@ -183,8 +182,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
           } else {
             failedStage = 'terminal_create'
             const terminal = await runtime.createTerminal(`id:${worktree.id}`, {
-              // Why: agent ids are not shell commands (`cursor` is the desktop app,
-              // its CLI is `cursor-agent`); resolve through the TUI agent config.
+              // Agent ids resolve through the TUI config; they are not shell commands.
               startupAgent: agent as TuiAgent,
               launchSource: 'orchestration',
               ...(launch.preferences ? { launchPreferences: launch.preferences } : {}),
@@ -260,8 +258,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
             coordinatorHandle: 'Run home (relayed by Orca)',
             workerHandle: terminalHandle,
             devMode: params.devMode,
-            // Why the worker host's own setting: enforcement runs here, with this
-            // host's code, against this host's cap.
+            // The worker host enforces its own nested depth limit.
             canDispatchSubWorkers: (params.depth ?? 1) < runtime.getNestedWorkerMaxDepth(),
             cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle)
           }),

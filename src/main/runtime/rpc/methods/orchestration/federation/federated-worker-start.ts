@@ -27,18 +27,24 @@ import {
   isReadyRemoteFederatedWorkerStartReceipt,
   parseRemoteFederatedWorkerStartReceipt
 } from './federated-attach-receipt'
-import { isWorkerStartTimeoutWithinTimerLimit } from '../../../../../../shared/orchestration-timing-budgets'
+import { assertWorkerStartTimeoutWithinTimerLimit } from '../worker/worker-start-timeout-guard'
 import {
   federatedUnknownReceipt,
   isKnownRemoteStartFailure
 } from './federated-worker-start-receipts'
 import { parseTaskDeps } from '../worker/task-deps-argument'
+import {
+  assertCommunitySkillWorkerCompatibility,
+  assertCommunitySkillsOnRemoteWorker,
+  inheritCommunitySkillsInPrompt
+} from '../../../../orchestration/community-skill-inheritance'
 
 export async function startFederatedWorker(args: {
   params: WorkerStartInput
   runtime: OrcaRuntimeService
   db: OrchestrationDb
   runId: string
+  communitySkillContext?: string
   task?: { id: string; spec: string; status: string }
   orchestrationMutation?: {
     callerFingerprint: string
@@ -46,16 +52,15 @@ export async function startFederatedWorker(args: {
     method: string
     payloadHash: string
   }
-  /** The coordinator's resolved session, when it is one; recorded as the Dispatch creator. */
+  /** Resolved coordinator session; recorded as the Dispatch creator. */
   callerSession?: OrchestrationSessionCaller
 }): Promise<unknown> {
   const { params, runtime, db, task, runId, orchestrationMutation } = args
-  if (!isWorkerStartTimeoutWithinTimerLimit(params.timeoutMs)) {
-    throw new OrchestrationError(
-      'invalid_argument',
-      '--timeout-ms is too large for worker-start transport grace; the derived timeout must fit within the timer limit.'
-    )
+  const communitySkillContext = args.communitySkillContext ?? ''
+  if (params.agent) {
+    assertCommunitySkillWorkerCompatibility(communitySkillContext, params.agent)
   }
+  assertWorkerStartTimeoutWithinTimerLimit(params.timeoutMs)
   if (!orchestrationMutation) {
     throw new OrchestrationError(
       'invalid_argument',
@@ -119,6 +124,13 @@ export async function startFederatedWorker(args: {
         : 1
 
   const setupDecision = createsWorktree ? (params.setup ?? 'run') : 'not_applicable'
+  await assertCommunitySkillsOnRemoteWorker(
+    communitySkillContext,
+    runtime,
+    params,
+    server,
+    budgets.preflightTimeoutMs
+  )
   const started = db.createStartingWorkerDispatch({
     creator: resolveDispatchCreator(runtime, params.from, args.callerSession),
     maxDepth: runtime.getNestedWorkerMaxDepth(),
@@ -130,6 +142,7 @@ export async function startFederatedWorker(args: {
     taskRunId: runId,
     retryOf: params.retryOf,
     startOptions: {
+      communitySkillContext,
       on: server.environmentId,
       serverName: server.name,
       worktree,
@@ -168,9 +181,8 @@ export async function startFederatedWorker(args: {
           runId,
           dispatchId: started.dispatch.id,
           taskId: taskForRemote.id,
-          taskSpec: taskForRemote.spec,
-          // Carry the home dispatch depth across the federation boundary so a
-          // remote worker cannot be mistaken for a root when it dispatches again.
+          taskSpec: inheritCommunitySkillsInPrompt(communitySkillContext, taskForRemote.spec),
+          // Preserve home dispatch depth so remote nested workers are not mistaken for roots.
           depth: started.dispatch.depth,
           protocolVersion: federationProtocolVersion,
           worktree,

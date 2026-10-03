@@ -30,7 +30,7 @@ type PickerAutocomplete = {
   query: string
   items: NativeChatPickerItem[]
   triggerKey: string
-  prefix: '/'
+  prefix: '/' | '&'
   /** Only a draft-leading `/command` reaches the agent as a command. */
   dispatchable: boolean
   grouped: boolean
@@ -38,6 +38,7 @@ type PickerAutocomplete = {
   skillsEnabled: boolean
   skillStatus: NativeChatSkillDiscoverySnapshot['status']
   skillErrorKind?: NativeChatSkillDiscoverySnapshot['errorKind']
+  skillError?: string
 }
 
 export type ComposerAutocomplete =

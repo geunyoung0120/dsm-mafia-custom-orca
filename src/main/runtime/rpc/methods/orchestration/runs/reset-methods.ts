@@ -1,5 +1,9 @@
 import { defineMethod } from '../../../core'
 import { ResetParams } from '../schemas'
+import {
+  clearRunCommunitySkillContexts,
+  clearAttachmentCommunitySkillContexts
+} from '../../../../orchestration/community-skill-inheritance'
 
 export const ORCHESTRATION_RESET_METHODS = [
   defineMethod({
@@ -10,11 +14,14 @@ export const ORCHESTRATION_RESET_METHODS = [
       if (params.all) {
         runtime.stopOrchestrationFederationRelay()
         db.resetAll()
+        clearRunCommunitySkillContexts(db)
+        clearAttachmentCommunitySkillContexts(db)
         return { reset: 'all' }
       }
       if (params.tasks) {
         runtime.stopOrchestrationFederationRelay()
         db.resetTasks()
+        clearAttachmentCommunitySkillContexts(db)
         return { reset: 'tasks' }
       }
       if (params.messages) {

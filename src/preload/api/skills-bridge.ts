@@ -1,4 +1,5 @@
 import { ipcRenderer } from 'electron'
+import { communitySkillsApi } from './community-skills-bridge'
 import type {
   SkillDeletePlan,
   SkillDeleteRequest,
@@ -40,6 +41,7 @@ import type {
 import type { PreloadApi } from '../api-types'
 
 export const skillsApi = {
+  community: communitySkillsApi,
   discover: (target?: SkillDiscoveryTarget): Promise<SkillDiscoveryResult> =>
     ipcRenderer.invoke('skills:discover', target),
   freshnessInventory: (): Promise<SkillFreshnessInventory> =>

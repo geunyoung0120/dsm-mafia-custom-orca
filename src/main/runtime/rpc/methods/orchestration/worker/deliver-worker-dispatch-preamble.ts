@@ -7,6 +7,7 @@ import {
 import { sendStructuredWorkerPreamble } from '../../orchestration-structured-worker-session'
 import type { WorkerTurnStartObservation } from './worker-start-turn-observation'
 import type { createStructuredWorkerSessionForWorktree } from './worker-topology'
+import { dispatchCommunitySkillContext } from '../../../../orchestration/community-skill-inheritance'
 
 type StructuredSession = Awaited<ReturnType<typeof createStructuredWorkerSessionForWorktree>> | null
 
@@ -34,7 +35,7 @@ export async function deliverWorkerDispatchPreamble(args: {
   structuredTurnStart?: WorkerTurnStartObservation
 }> {
   const { runtime, structuredSession, terminalHandle } = args
-  const preamble = buildDispatchPreamble({
+  const dispatchPreamble = buildDispatchPreamble({
     // Depth only. A worker is taught the same verbs whichever mode it runs in, so this must not
     // become a second gate: resolving the caller's worktree is what lets a structured worker
     // dispatch sub-workers exactly like a PTY one.
@@ -47,6 +48,8 @@ export async function deliverWorkerDispatchPreamble(args: {
     devMode: args.devMode,
     cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle)
   })
+  const context = dispatchCommunitySkillContext(runtime.getOrchestrationDb(), args.dispatchId)
+  const preamble = context ? `${context}\n\n${dispatchPreamble}` : dispatchPreamble
   if (structuredSession) {
     const delivery = await sendStructuredWorkerPreamble({
       host: structuredSession.host,

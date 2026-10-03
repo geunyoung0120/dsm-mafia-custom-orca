@@ -10,6 +10,7 @@ export const NativeChatPickerMenu = memo(function NativeChatPickerMenu({
   activeIndex,
   listboxId,
   onChoose,
+  onPreview,
   onRetry
 }: {
   autocomplete: Extract<ComposerAutocomplete, { mode: 'slash' }>
@@ -17,13 +18,15 @@ export const NativeChatPickerMenu = memo(function NativeChatPickerMenu({
   listboxId: string
   onChoose: (item: NativeChatPickerItem) => void
   onRetry: () => void
+  onPreview?: (item: Extract<NativeChatPickerItem, { kind: 'community-skill' }>) => void
 }): React.JSX.Element {
   const activeItemRef = useRef<HTMLButtonElement | null>(null)
   const commands = autocomplete.items.filter(
     (item): item is Extract<NativeChatPickerItem, { kind: 'command' }> => item.kind === 'command'
   )
   const skills = autocomplete.items.filter(
-    (item): item is Extract<NativeChatPickerItem, { kind: 'skill' }> => item.kind === 'skill'
+    (item): item is Extract<NativeChatPickerItem, { kind: 'skill' | 'community-skill' }> =>
+      item.kind === 'skill' || item.kind === 'community-skill'
   )
 
   useEffect(() => {
@@ -38,14 +41,14 @@ export const NativeChatPickerMenu = memo(function NativeChatPickerMenu({
     autocomplete.skillStatus === 'ready' && commands.length === 0 && skills.length === 0
   const emptyText = noMatches ? getPickerEmptyText(autocomplete) : null
   const collision = commands.find((item) => item.skillCollision)
-  const duplicate = skills.find((item) => item.sources.length > 1)
+  const duplicate = skills.find((item) => item.kind === 'skill' && item.sources.length > 1)
 
   let optionIndex = 0
   return (
     <div
       id={listboxId}
       role="listbox"
-      className="scrollbar-sleek absolute bottom-full left-0 right-0 z-20 mb-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-[0_10px_24px_rgba(0,0,0,0.18)]"
+      className="scrollbar-sleek absolute bottom-full left-0 right-0 z-20 mb-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-floating"
     >
       {showCommandsHeading ? <PickerGroupHeading kind="commands" /> : null}
       {commands.map((item) => {
@@ -72,17 +75,18 @@ export const NativeChatPickerMenu = memo(function NativeChatPickerMenu({
       {autocomplete.skillStatus === 'error' ? (
         <PickerStatus>
           <span className="min-w-0 flex-1">
-            {autocomplete.skillErrorKind === 'unavailable'
-              ? translate(
-                  'components.native-chat.composer.skillsUnavailableHost',
-                  'Skills are unavailable for this host'
-                )
-              : translate(
-                  'components.native-chat.composer.skillsLoadFailed',
-                  'Could not load skills from this host'
-                )}
+            {autocomplete.skillError ??
+              (autocomplete.skillErrorKind === 'unavailable'
+                ? translate(
+                    'components.native-chat.composer.skillsUnavailableHost',
+                    'Skills are unavailable for this host'
+                  )
+                : translate(
+                    'components.native-chat.composer.skillsLoadFailed',
+                    'Could not load skills from this host'
+                  ))}
           </span>
-          {autocomplete.skillErrorKind !== 'unavailable' ? (
+          {autocomplete.skillErrorKind !== 'unavailable' || autocomplete.prefix === '&' ? (
             <button
               type="button"
               onPointerDown={(event) => event.preventDefault()}
@@ -98,18 +102,38 @@ export const NativeChatPickerMenu = memo(function NativeChatPickerMenu({
       {skills.map((item) => {
         const index = optionIndex++
         return (
-          <PickerOption
-            key={item.id}
-            item={item}
-            index={index}
-            activeIndex={activeIndex}
-            listboxId={listboxId}
-            activeItemRef={activeItemRef}
-            onChoose={onChoose}
-          />
+          <div key={item.id} className="flex items-center gap-1">
+            <PickerOption
+              item={item}
+              index={index}
+              activeIndex={activeIndex}
+              listboxId={listboxId}
+              activeItemRef={activeItemRef}
+              onChoose={onChoose}
+            />
+            {item.kind === 'community-skill' && onPreview ? (
+              <button
+                type="button"
+                aria-label={`Preview ${item.token}`}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => onPreview(item)}
+                className="shrink-0 rounded-sm px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              >
+                {translate('communitySkills.previewAction', 'Preview')}
+              </button>
+            ) : null}
+          </div>
         )
       })}
       {noMatches ? <PickerStatus>{emptyText}</PickerStatus> : null}
+      {autocomplete.prefix === '&' ? (
+        <PickerStatus>
+          {translate(
+            'communitySkills.tokenNotice',
+            'Selected instructions enter model context and consume tokens.'
+          )}
+        </PickerStatus>
+      ) : null}
       <div aria-live="polite" className="sr-only">
         {autocomplete.skillStatus === 'loading'
           ? translate('components.native-chat.composer.loadingSkills', 'Loading skills...')
@@ -205,7 +229,7 @@ function PickerOption({
         selected && 'border-border bg-accent text-accent-foreground'
       )}
     >
-      {item.kind === 'skill' ? (
+      {item.kind !== 'command' ? (
         <Package className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
       ) : null}
       <span className="min-w-0 flex-1">
@@ -234,6 +258,9 @@ function PickerOption({
 }
 
 function getPickerAnnotation(item: NativeChatPickerItem): string | null {
+  if (item.kind === 'community-skill') {
+    return translate('communitySkills.pinnedAnnotation', 'Community · pinned version')
+  }
   if (item.kind === 'command' && item.skillCollision) {
     return translate(
       'components.native-chat.composer.skillCommandCollision',
