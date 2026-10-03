@@ -183,6 +183,8 @@ describe('registerAppMenu', () => {
       (entry) => entry.label === 'Check for Updates...'
     )
 
+    expect(item?.visible).toBe(false)
+
     item?.click?.({} as never, undefined as never, { shiftKey: true } as Electron.KeyboardEvent)
     item?.click?.({} as never, undefined as never, {} as Electron.KeyboardEvent)
     item?.click?.(

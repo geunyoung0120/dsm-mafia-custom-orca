@@ -1,3 +1,4 @@
+import { shell } from 'electron'
 import { describe, expect, it, vi } from 'vitest'
 
 const service = vi.hoisted(() => ({
@@ -24,6 +25,8 @@ describe('custom distribution update ownership', () => {
     updater.checkForUpdatesFromMenu()
     updater.downloadUpdate()
     updater.quitAndInstall()
+    expect(updater.getUpdateStatus()).toEqual({ state: 'idle' })
+    expect(shell.openExternal).not.toHaveBeenCalled()
     expect(await updater.listAvailableReleaseBuilds('stable')).toEqual([])
     for (const call of Object.values(service)) {
       expect(call).not.toHaveBeenCalled()

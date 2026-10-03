@@ -1,4 +1,4 @@
-import { shell, type BrowserWindow } from 'electron'
+import type { BrowserWindow } from 'electron'
 import type {
   LinuxPackageInstallInstructions,
   UpdateCheckOptions,
@@ -24,7 +24,7 @@ export function resolveUpdateInstallMode(isServeMode: boolean): UpdateInstallMod
 }
 
 export function getUpdateStatus(): UpdateStatus {
-  return updater.getUpdateStatus()
+  return { state: 'idle' }
 }
 
 export function getRemoteServerUpdateSupport(): RemoteServerUpdateSupport {
@@ -56,7 +56,7 @@ export function checkForUpdates(): void {
 
 export function checkForUpdatesFromMenu(options?: UpdateCheckOptions): void {
   void options
-  void shell.openExternal('https://github.com/geunyoung0120/dsm-mafia-custom-orca/releases')
+  // Desktop updates are managed outside the app.
 }
 
 export function downloadUpdate(): void {
