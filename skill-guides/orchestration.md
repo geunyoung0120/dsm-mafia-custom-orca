@@ -159,6 +159,8 @@ Every Task spec must be self-contained and name:
 
 ## Completion accounting
 
+Before the final answer, release all settled task-owned workers without another confirmation, then verify their recorded handles are absent from `ORCA terminal list --json`. Inspect all pages of `worker-list --run <run_id> --json`; retained/pending/unknown is not closed. Preserve user takeovers and active work; report cleanup blockers. See `references/recovery-and-cleanup.md` for the final cleanup checklist.
+
 After an accepted success or failure report, immediately do exactly one:
 
 1. Reuse the same proven agent terminal for an immediate follow-up Dispatch.
