@@ -55,3 +55,18 @@ class ScheduleTests(unittest.TestCase):
 
 
 if __name__=='__main__': unittest.main()
+
+class WatchServiceTests(unittest.TestCase):
+    def test_linux_exit_watcher_has_an_independent_service(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory); state=home/'manager'; runtime=state/'runtimes/1.0.15/updater'
+            with patch('platforms.Path.home',return_value=home), patch('platforms.run') as command:
+                self.assertTrue(hasattr(platforms,'start_watch_service'), 'Separate watcher service is missing')
+                platforms.start_watch_service([str(runtime),'watch-ready','--state',str(state)])
+            service=(home/'.config/systemd/user/orca-custom-install-watch.service').read_text()
+            self.assertIn('Type=simple',service)
+            self.assertIn('Restart=on-failure',service)
+            self.assertIn(str(runtime),service)
+            self.assertIn('watch-ready',service)
+            self.assertNotIn('OnUnitActiveSec',service)
+            self.assertIn(['systemctl','--user','start','orca-custom-install-watch.service'],[call.args[0] for call in command.call_args_list])

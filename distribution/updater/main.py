@@ -10,7 +10,8 @@ import sys
 import time
 import zipfile
 from urllib.error import URLError
-from install import recover, replace_app
+from install import recover, replace_app, blocking_pids, RecoveryWaitingForQuit
+from process_exit import wait_for_any_exit
 from cache import prune
 from network import download, latest, release_manifest
 import platforms
@@ -24,9 +25,9 @@ def emit(value):
 
 
 @contextmanager
-def lock(state):
+def lock(state, filename='updater.lock'):
     state.mkdir(parents=True,exist_ok=True)
-    handle=(state/'updater.lock').open('a+b')
+    handle=(state/filename).open('a+b')
     try:
         if sys.platform=='win32':
             import msvcrt
@@ -177,10 +178,62 @@ def install_initial(state, package):
     return result
 
 
+def watch_ready(state):
+    """Wait outside the installer lock; only one pending watcher per installation."""
+    try:
+        with lock(state, 'installation-watch.lock'):
+            cancelled = lambda: (state/'paused').exists() or not (state/'pending.json').exists()
+            while (state/'pending.json').exists():
+                if (state/'paused').exists():
+                    time.sleep(0.2)
+                    continue
+                pids = blocking_pids(state/'app')
+                if pids:
+                    if not wait_for_any_exit(pids, cancelled): continue
+                    continue
+                try:
+                    with lock(state):
+                        if cancelled(): continue
+                        try:
+                            recover(state, state/'app')
+                        except RecoveryWaitingForQuit:
+                            continue
+                        pending = read_json(state/'pending.json')
+                        if not pending: return
+                        result = apply(state, pending)
+                except BlockingIOError:
+                    time.sleep(0.2)  # Contended installer lock only, never a quit timer.
+                    continue
+                emit(result)
+                if result['status'] not in ('waiting_for_quit', 'paused'): return
+    except BlockingIOError:
+        return
+
+
+def start_ready_watcher(state):
+    try:
+        with lock(state, 'installation-watch.lock'):
+            pass
+    except BlockingIOError:
+        return
+    # Start after releasing the probe lock so the child can acquire ownership.
+    pending = read_json(state/'pending.json', {})
+    runtime = Path(pending.get('current', {}).get('runtime', sys.executable))
+    argv = [str(runtime)]
+    if not getattr(sys, 'frozen', False): argv.append(str(Path(__file__).resolve()))
+    argv += ['watch-ready', '--state', str(state)]
+    if sys.platform == 'linux':
+        platforms.start_watch_service(argv)
+        return
+    options = {'creationflags': subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS} if sys.platform == 'win32' else {'start_new_session': True}
+    with (state/'installation-watch.log').open('ab') as log:
+        subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=log, stderr=log, **options)
+
+
 def main():
     global OUTPUT_STATE
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command',nargs='?',default='install',choices=['install','tick','check','status','pause','resume','retry','notify','self-test'])
+    parser.add_argument('command',nargs='?',default='install',choices=['install','tick','check','status','pause','resume','retry','notify','self-test','watch-ready'])
     parser.add_argument('--state',type=Path,default=platforms.state_home())
     args=parser.parse_args(); state=args.state.resolve()
     if args.command=='self-test': emit({'platform':platforms.target(),'repository':REPOSITORY}); return
@@ -188,7 +241,7 @@ def main():
     # A stable bootstrap delegates to the verified versioned Python executable.
     current=read_json(state/'current.json',{})
     runtime=Path(current.get('runtime',sys.executable))
-    if (getattr(sys,'frozen',False) and args.command!='install' and runtime.exists() and
+    if (getattr(sys,'frozen',False) and args.command not in ('install','watch-ready') and runtime.exists() and
             runtime.resolve()!=Path(sys.executable).resolve() and runtime.resolve().is_relative_to((state/'runtimes').resolve())):
         options={'creationflags':subprocess.CREATE_NO_WINDOW} if sys.platform=='win32' else {}
         raise SystemExit(subprocess.call([str(runtime),*sys.argv[1:]],**options))
@@ -199,6 +252,9 @@ def main():
     state.mkdir(parents=True,exist_ok=True)
     if args.command=='pause': (state/'paused').touch(); return
     try:
+        if args.command == 'watch-ready':
+            watch_ready(state)
+            return
         with lock(state):
             if args.command=='resume': (state/'paused').unlink(missing_ok=True)
             if args.command=='retry': (state/'failure.json').unlink(missing_ok=True)
@@ -210,6 +266,7 @@ def main():
             else: result=tick(state,force=args.command in ('check','retry','resume'))
             emit(result)
             if result.get('status')=='failed': raise SystemExit(1)
+        if result.get('status') == 'waiting_for_quit': start_ready_watcher(state)
     except BlockingIOError:
         emit({'status':'already_running'})
     except Exception as error:

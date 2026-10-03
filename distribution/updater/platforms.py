@@ -31,6 +31,24 @@ def run(argv, **kwargs):
     return subprocess.run([str(arg) for arg in argv],check=True,capture_output=True,text=True,timeout=60,**kwargs).stdout.strip()
 
 
+def systemd_argument(value):
+    if any(character in value for character in ('\n','\r','\0')):
+        raise ValueError('Invalid systemd argument')
+    return '"'+value.replace('\\','\\\\').replace('"','\\"').replace('%','%%')+'"'
+
+
+def start_watch_service(argv):
+    # A oneshot check's cgroup is torn down when it exits; supervise separately.
+    units=Path.home()/'.config/systemd/user'; units.mkdir(parents=True,exist_ok=True)
+    name='orca-custom-install-watch.service'
+    temporary=units/(name+'.new')
+    temporary.write_text('[Unit]\nDescription=Orca Custom pending installation\n[Service]\nType=simple\nExecStart='+
+        ' '.join(map(systemd_argument,argv))+'\nRestart=on-failure\nRestartSec=1\n',encoding='utf-8')
+    temporary.replace(units/name)
+    run(['systemctl','--user','daemon-reload'])
+    run(['systemctl','--user','start',name])
+
+
 def schedule(state, bootstrap, windows_task_name='Orca Custom Updater'):
     state,bootstrap=Path(state),Path(bootstrap)
     args=[str(bootstrap),'tick','--state',str(state)]
@@ -71,11 +89,8 @@ def schedule(state, bootstrap, windows_task_name='Orca Custom Updater'):
         run(['schtasks','/Run','/TN',windows_task_name])
     else:
         units=Path.home()/'.config/systemd/user'; units.mkdir(parents=True,exist_ok=True)
-        def quote(value):
-            if '\n' in value or '\r' in value: raise ValueError('Invalid systemd argument')
-            return '"'+value.replace('\\','\\\\').replace('"','\\"').replace('%','%%')+'"'
         (units/'orca-custom-updater.service').write_text('[Unit]\nDescription=Orca Custom update check\n[Service]\nType=oneshot\nExecStart='+
-            ' '.join(map(quote,args))+'\nTimeoutStartSec=20min\n',encoding='utf-8')
+            ' '.join(map(systemd_argument,args))+'\nTimeoutStartSec=20min\n',encoding='utf-8')
         (units/'orca-custom-updater.timer').write_text('[Unit]\nDescription=Orca Custom update timer\n[Timer]\nOnStartupSec=1min\nOnUnitActiveSec=1min\n[Install]\nWantedBy=timers.target\n',encoding='utf-8')
         run(['systemctl','--user','daemon-reload']); run(['systemctl','--user','enable','--now','orca-custom-updater.timer'])
 

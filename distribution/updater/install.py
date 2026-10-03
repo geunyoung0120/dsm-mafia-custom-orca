@@ -5,14 +5,19 @@ import tempfile
 from policy import atomic_json, read_json, verify_inventory
 
 
-def app_running(app):
+class RecoveryWaitingForQuit(RuntimeError):
+    pass
+
+
+def blocking_pids(app):
     import psutil
     app=Path(app).resolve()
+    pids = []
     for process in psutil.process_iter(['exe','cmdline','name']):
         try:
             info=process.info; executable=info['exe']
             if not executable:
-                if (info['name'] or '').lower() in ('orca','orca.exe','orca-ide'): return True
+                if (info['name'] or '').lower() in ('orca','orca.exe','orca-ide'): pids.append(process.pid)
                 continue
             if not Path(executable).resolve().is_relative_to(app): continue
             args=info['cmdline'] or []
@@ -20,12 +25,16 @@ def app_running(app):
             if (len(args)>1 and Path(args[1]).name=='daemon-entry.js' and
                     Path(args[1]).resolve().is_relative_to(app) and '--socket' in args and '--pid-record' in args):
                 continue
-            return True
+            pids.append(process.pid)
         except psutil.NoSuchProcess:
             continue
         except psutil.AccessDenied:
-            if (process.info.get('name') or '').lower() in ('orca','orca.exe','orca-ide'): return True
-    return False
+            if (process.info.get('name') or '').lower() in ('orca','orca.exe','orca-ide'): pids.append(process.pid)
+    return pids
+
+
+def app_running(app):
+    return bool(blocking_pids(app))
 
 
 def restore_metadata(state, journal):
@@ -44,7 +53,7 @@ def recover(state, app):
             verify_inventory(app,journal['files'])
         except ValueError:
             if not backup.exists(): raise
-            if app_running(app): raise RuntimeError('Interrupted installation is waiting for app exit')
+            if app_running(app): raise RecoveryWaitingForQuit('Interrupted installation is waiting for app exit')
             shutil.rmtree(app)
         else:
             atomic_json(state/'current.json',journal['current'])

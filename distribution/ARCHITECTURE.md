@@ -32,7 +32,7 @@ flowchart TD
 
 ## Python 실행 순서
 
-`updater/platforms.py`가 OS별 관리 경로, 예약 실행, 바로가기, 알림을 처리합니다. 예약 작업은 1분마다 `OrcaCustomBootstrap tick`을 실행하며, `last-check.json`으로 GitHub 조회를 10분에 한 번으로 제한합니다. 설치 대기 중에는 앱 종료 여부만 확인합니다.
+`updater/platforms.py`가 OS별 관리 경로, 예약 실행, 바로가기, 알림을 처리합니다. 예약 작업은 1분마다 `OrcaCustomBootstrap tick`을 실행하며, `last-check.json`으로 GitHub 조회를 10분에 한 번으로 제한합니다. 설치 대기가 생기면 검증된 새 Python 런타임의 `watch-ready`를 즉시 시작합니다. 보조 프로세스는 macOS kqueue, Linux pidfd, Windows process handle로 종료를 기다리며 설치 잠금은 기다리는 동안 점유하지 않습니다. 오래된 Linux 커널은 psutil의 짧은 종료 대기를 사용합니다. 중복 watcher는 별도 잠금으로 차단하며 일시정지와 대기 취소를 확인합니다. GitHub 확인 타이머와 설치 시작 시점은 별개입니다.
 
 고정된 부트스트랩은 `current.json`에 기록된 버전별 Python 실행 파일로 위임합니다. Windows에서 실행 중인 업데이터를 덮어쓰지 않기 위한 구조입니다. 새 업데이터도 앱과 함께 내려받아 버전별 위치에 둡니다.
 
