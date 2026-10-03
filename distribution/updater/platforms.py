@@ -97,12 +97,18 @@ def shortcut(state):
     else:
         path=Path.home()/'.local/share/applications/orca-custom.desktop'; path.parent.mkdir(parents=True,exist_ok=True)
         executable=str(app/'orca').replace('%','%%')
-        path.write_text('[Desktop Entry]\nType=Application\nName=Orca Custom\nExec='+json.dumps(executable)+'\nTerminal=false\nCategories=Development;IDE;\n',encoding='utf-8')
+        if '\n' in executable or '\r' in executable: raise ValueError('Invalid launcher path')
+        for character in ('\\','"','`','$'):
+            executable=executable.replace(character,'\\'+character)
+        executable='"'+executable.replace('\\','\\\\')+'"'
+        path.write_text('[Desktop Entry]\nType=Application\nName=Orca Custom\nExec='+executable+'\nTerminal=false\nCategories=Development;IDE;\n',encoding='utf-8')
 
 
 def notify(state, title, message, request_permission=False):
     if sys.platform=='darwin':
-        helper=Path(state)/'app/Orca.app/Contents/Resources/custom-notifier.app/Contents/MacOS/OrcaUpdateNotifier'
+        bundle=Path(state)/'app/Orca.app/Contents/Resources/custom-notifier.app'
+        run(['/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister','-f',bundle])
+        helper=bundle/'Contents/MacOS/OrcaUpdateNotifier'
         args=[helper,'--id','orca-custom-update','--title',title,'--message',message]
         if request_permission: args.append('--request-permission')
         return json.loads(run(args))

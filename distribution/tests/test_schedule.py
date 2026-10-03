@@ -12,6 +12,22 @@ import platforms
 
 
 class ScheduleTests(unittest.TestCase):
+    def test_linux_launcher_preserves_unicode_and_quotes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory); state=home/'사용자 폴더'
+            with patch('platforms.sys.platform','linux'),patch('platforms.Path.home',return_value=home):
+                platforms.shortcut(state)
+            entry=(home/'.local/share/applications/orca-custom.desktop').read_text()
+            self.assertIn('Exec="'+str(state/'app/orca')+'"',entry)
+            self.assertNotIn('\\u',entry)
+
+    def test_mac_notification_registers_its_bundle_before_requesting_permission(self):
+        with patch('platforms.sys.platform','darwin'),patch('platforms.run',side_effect=['','{"status":"scheduled"}']) as run:
+            result=platforms.notify(Path('/fixture'),'title','message',True)
+        self.assertTrue(str(run.call_args_list[0].args[0][0]).endswith('/lsregister'))
+        self.assertIn('--request-permission',run.call_args_list[1].args[0])
+        self.assertEqual(result['status'],'scheduled')
+
     @unittest.skipUnless(sys.platform=='win32' and os.environ.get('GITHUB_ACTIONS')=='true',
                          'Registers a disposable task only on the isolated Windows CI runner')
     def test_windows_scheduler_accepts_and_runs_task(self):
