@@ -15,6 +15,7 @@ import { HideSidebarMenu } from './sidebar-nav-controls'
 import { translate } from '@/i18n/i18n'
 import { lazyWithRetry } from '@/lib/lazy-with-retry'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
+import { CommunitySkillsEntry } from '../community-skills/CommunitySkillsEntry'
 
 export function shouldShowMobileButton(
   settings: Partial<Pick<GlobalSettings, 'showMobileButton'>> | null | undefined
@@ -148,6 +149,7 @@ const SidebarNav = React.memo(function SidebarNav() {
           <HideSidebarMenu onHide={hideArtifactsButton} />
         </ContextMenu>
       ) : null}
+      <CommunitySkillsEntry />
       {showSkillsButton ? (
         <ContextMenu>
           <ContextMenuTrigger asChild>

@@ -9,7 +9,6 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
-import { CommunitySkillsEntry } from '@/components/community-skills/CommunitySkillsEntry'
 import { skillCountLabel } from './skill-display-labels'
 import { SKILLS_PAGE_COLUMN } from './skills-page-column'
 import { SkillsSourcesPopover } from './SkillsSourcesPopover'
@@ -89,7 +88,6 @@ export function SkillsPageHeader({
             ) : null}
           </div>
         </div>
-        <CommunitySkillsEntry />
         <Button type="button" size="sm" onClick={onStartShare}>
           <Share2 className="size-3.5" />
           {translate(

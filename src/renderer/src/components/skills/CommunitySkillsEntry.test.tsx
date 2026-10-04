@@ -8,6 +8,7 @@ import type {
   CommunitySkillsApi
 } from '../../../../shared/community-skills'
 import { SkillsPageHeader } from './SkillsPageHeader'
+import { CommunitySkillsEntry } from '../community-skills/CommunitySkillsEntry'
 
 const metadata: CommunitySkillMetadata = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -60,6 +61,8 @@ function setup(overrides: Partial<CommunitySkillsApi> = {}, available = true) {
       />
     </TooltipProvider>
   )
+  expect(screen.queryByRole('button', { name: 'Community skills' })).toBeNull()
+  render(<CommunitySkillsEntry />)
   fireEvent.click(screen.getByRole('button', { name: 'Community skills' }))
   return { api, share }
 }
@@ -69,7 +72,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('Skills header community catalog', () => {
+describe('Independent community catalog', () => {
   it('browses publicly and previews a pinned version as safe text without installing', async () => {
     const { api } = setup()
     fireEvent.click(await screen.findByRole('button', { name: /alice\/review-code/ }))

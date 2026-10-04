@@ -216,6 +216,24 @@ describe('SidebarNav', () => {
     setSidebarState()
   })
 
+  it('opens the community catalog directly even when the Skills shortcut is hidden', async () => {
+    Object.defineProperty(window, 'api', {
+      configurable: true,
+      value: { skills: {} }
+    })
+    setSidebarState({ settings: { ...getDefaultSettings('/tmp'), showSkillsButton: false } })
+    const container = await renderSidebarNav()
+    expect(queryButtonByText(container, 'Skills')).toBeNull()
+    const button = getButtonByText(container, 'Community skills')
+    await clickButton(button)
+    await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+    expect(document.body.textContent).toContain('Community skills are unavailable')
+    expect(mocks.updateSettings).not.toHaveBeenCalled()
+    await clickButton(getButtonByText(document, 'Close'))
+    await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull())
+    expect(getButtonByText(container, 'Community skills')).toBeTruthy()
+  })
+
   it('keeps the Agent Dashboard row unmounted while its experiment is off', async () => {
     const container = await renderSidebarNav()
 
